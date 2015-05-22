@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[My Octopress Blog]]></title>
-  <link href="http://yoursite.com/atom.xml" rel="self"/>
-  <link href="http://yoursite.com/"/>
-  <updated>2015-05-22T10:25:43+08:00</updated>
-  <id>http://yoursite.com/</id>
+  <title><![CDATA[philon的博客]]></title>
+  <link href="http://ios.devphilon.com/atom.xml" rel="self"/>
+  <link href="http://ios.devphilon.com/"/>
+  <updated>2015-05-22T11:40:15+08:00</updated>
+  <id>http://ios.devphilon.com/</id>
   <author>
-    <name><![CDATA[Your Name]]></name>
+    <name><![CDATA[philon]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
@@ -15,9 +15,9 @@
   
   <entry>
     <title type="html"><![CDATA[HelloWorld]]></title>
-    <link href="http://yoursite.com/blog/2015/05/22/helloworld/"/>
+    <link href="http://ios.devphilon.com/blog/2015/05/22/helloworld/"/>
     <updated>2015-05-22T10:25:23+08:00</updated>
-    <id>http://yoursite.com/blog/2015/05/22/helloworld</id>
+    <id>http://ios.devphilon.com/blog/2015/05/22/helloworld</id>
     <content type="html"><![CDATA[
 ]]></content>
   </entry>
