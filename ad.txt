@@ -1,0 +1,9 @@
+广告条修改：
+
+1. 修改 _config.yml:
+   default_asides: [custom/asides/ad_fir.html]
+
+2. 将新的广告模块放到 ./source/_includes/custom/asides/ 路径下
+
+3. 图片放到 source/images 目录下
+
