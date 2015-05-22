@@ -4,7 +4,7 @@
   <title><![CDATA[philon的博客]]></title>
   <link href="http://ios.devphilon.com/atom.xml" rel="self"/>
   <link href="http://ios.devphilon.com/"/>
-  <updated>2015-05-22T13:15:40+08:00</updated>
+  <updated>2015-05-22T13:37:22+08:00</updated>
   <id>http://ios.devphilon.com/</id>
   <author>
     <name><![CDATA[philon]]></name>
@@ -14,11 +14,11 @@
 
   
   <entry>
-    <title type="html"><![CDATA[HelloWorld]]></title>
+    <title type="html"><![CDATA[如何搭建自己的github博客，我从这里启航]]></title>
     <link href="http://ios.devphilon.com/blog/2015/05/22/helloworld/"/>
     <updated>2015-05-22T10:25:23+08:00</updated>
     <id>http://ios.devphilon.com/blog/2015/05/22/helloworld</id>
-    <content type="html"><![CDATA[
+    <content type="html"><![CDATA[<p>来某易公司差不多三个季度了，比起刚入职时候的期待、兴奋、专注，现在是期待和兴奋已被磨灭殆尽，在技术方面也越来越不专注了。越是闲下来，越不想时光在这样的停摆期悄悄溜走，特别想让自己仍然在IOS和前端领域深耕细作。 折腾了两天，终于把自己的独立博客在github搭建起来了，以后希望能够在此和大家分享当前前端前沿技术的学习和实践，也希望能够在IOS的深入学习上能够一点一滴的由浅入深，</p>
 ]]></content>
   </entry>
   
