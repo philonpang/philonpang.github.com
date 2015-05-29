@@ -1,0 +1,468 @@
+---
+layout: post
+title: "通用JSBridge的设计和实现"
+date: 2015-05-29 21:30:27 +0800
+comments: true
+categories: 
+---
+
+### 前言
+对于商务类的app，随着app注册使用人数递增，app的运营者们就会逐渐考虑在应用中开展一些推广活动。大多数活动具备时效性强、运营时间短的特征，一般产品们和运营者们都是通过wap页面快速投放到产品的活动模块。Wap页面可以声文并茂地介绍活动，但活动的最终目标是通过获取特权、跳转进入本地功能模块，最后达成交易。如何建立wap页面和本地Native页面的深度交互，这就需要用到本文介绍的JSBridge。
+
+此外一些平台类的产品，如大家每天都在使用的微信、支付宝、手机qq等，无一例外都在使用集成JSBridge的webContainer完成众多业务组件功能，大大减少了客户端Native开发的工作量，不仅节约了大量人力开发成本，还能避开产品上线更新的版本审核周期限制（特别是IOS平台）。当然这些超级APP有强大的技术力量支撑，通过JSBridge有计划的进行API规范接口，不断向前端Wap开发人员开放，并在版本上向下兼容。但对于我们刚起步运营的中小级app来说暂时还没有必要如此大张旗鼓，相反前面提到的wap活动推广则是我们的主要需求。
+
+为了满足这个需求，本文通过提炼JSBridge的核心部分改造成JSService方式供各个不同的产品零修改方式使用。各个不同的产品只需要按照插件的方式提供Native扩展接口，并在各自封装的webContainer中调用JSService对Wap调用进行拦截处理。
+
+
+### 具体产品应用
+
+目前该框架同时覆盖了Android和IOS平台，在我司的几个电商类产品中都得到了很好的使用，并趋于稳定。
+本文的Demo工程运行效果如下：
+
+{% img /images/jsapidemo_ios.png %}
+{% img /images/jsapidemo_android.jpg %}
+
+
+### 关于JSAPI的接口封装
+
+JSAPI的封装包括核心JS和对外开放接口JS两个部分。 核心JS部分通过拦截某Q的wap请求页面获取，获取的JS进行编码混淆处理，已经通过调试进行了注释，其主要过程就是对参数和回调进行封装，并构建一个url链接通过创建一个隐藏的iframe进行发送。[核心JS代码阅读]()
+
+对参数和回调进行封装部分的代码如下：
+
+```
+//invoke
+	//mapp.invoke("device", "getDeviceInfo", e);
+	//@param e 类 必须
+	//@param n 类方法 必须
+	//@param i 同步回调的js方法
+	//@param s 
+    function k(e, n, i, s) {
+        if (!e || !n) return null;
+        var o, u;
+        i = r.call(arguments, 2), //相当于调用Array.prototype.slice(arguments) == arguments.slice(2),获取argument数组2以后的元素
+        
+		//令s等于回调函数
+		s = i.length && i[i.length - 1],
+        s && typeof s == "function" ? i.pop() : typeof s == "undefined" ? i.pop() : s = null,
+        
+		//u为当前存储回调函数的index；
+		u = b(s);
+        
+		//如果当前版本支持Bridge
+		if (C(e, n)) {
+			//将传进来的所有参数生成一个url字符串；
+            o = "ldjsbridge:" + "/" + "/" + encodeURIComponent(e) + "/" + encodeURIComponent(n),
+            i.forEach(function(e, t) {
+                typeof e == "object" && (e = JSON.stringify(e)),
+                t === 0 ? o += "?p=": o += "&p" + t + "=",
+                o += encodeURIComponent(String(e))
+            }),
+            (o += "#" + u); //带上存储回调的数组index;
+			
+           
+			//执行生成的url, 有些函数是同步执行完毕，直接调用回调函数；而有些函数的调用要通过异步调用执行，需要通过
+			//全局调用去完成；
+   		    var f = N(o);
+            if (t.iOS) {
+                f = f ? f.result: null;
+                if (!s) return f; //如果无回调函数，直接返回结果；
+            }
+        }else {
+			console.log("mappapi: the version don't support mapp." + e + "." + n);
+		}
+    }
+
+```
+
+
+
+创建iframe发送JSBridge调用请求：
+
+```
+	//创建一个iframe，执行src，供拦截
+	function N(n, r) {
+		console.log("logOpenURL:>>" + n);
+        var i = document.createElement("iframe");
+        i.style.cssText = "display:none;width:0px;height:0px;";
+        var s = function() {
+			//通过全局执行函数执行回调函数；监听iframe是否加载完毕
+            E(r, {
+                r: -201,
+                result: "error"
+            })
+        };
+        
+		//ios平台，令iframe的src为url，onload函数为全局回调函数
+		//并将iframe插入到body或者html的子节点中；
+		t.iOS && (i.onload = s, i.src = n);
+        var o = document.body || document.documentElement; 
+        o.appendChild(i),
+        t.android && (i.onload = s, i.src = n);
+		
+		//
+        var u = t.__RETURN_VALUE;
+		//当iframe执行完成之后，最后执行settimeout 0语句
+        return t.__RETURN_VALUE = e,
+        setTimeout(function() {
+            i.parentNode.removeChild(i)
+        },
+        0),
+        u
+    }
+```
+
+
+对外开放接口的封装：（使用者只需要对该部分进行接口扩展即可）
+
+```
+mapp.build("mapp.device.getDeviceInfo", {
+    iOS: function(e) {
+		return mapp.invoke("device", "getDeviceInfo", e);
+    },
+    android: function(e) {
+		var t = e;
+		e = function(e) {
+			try {
+				e = JSON.parse(e)
+			} catch(n) {}
+			t && t(e)
+		},
+		mapp.invoke("device", "getDeviceInfo", e)
+    },
+    support: {
+        iOS: "1.0",
+        android: "1.0"
+    }
+}),
+
+
+```
+
+
+#### 核心JS代码调用说明
+
+```
+
+mapp.version: mappAPI自身版本号
+
+mapp.iOS: 如果在ios app中，值为true
+
+mapp.android: 如果在android app中，值为true
+
+mapp.support: 检查当前app环境是否支持该接口，支持返回true
+
+	mapp.support("mqq.device.getClientInfo")
+
+mapp.callback: 用于生成回调名字，跟着invoke参数传给客户端，供客户端回调
+
+	var callbackName = mapp.callback(function(type, index){    	console.log("type: " + type + ", index: " + index);    });
+
+mapp.invoke 方法:
+
+mapp核心方法，用于调用客户端接口。
+
+		@param {String} namespace 命名空间
+		@param {String} method 接口名字
+		@param {Object/String} params 可选，API调用的参数
+		@param {Function} callback 可选，API调用的回调
+
+* 调用普通的无参数接口：
+
+		mapp.invoke("ns", "method");
+		
+* 调用有异步回调函数的接口：
+
+		mapp.invoke("ns", "method", function(data){
+			console.log(data);
+		});
+		
+		或
+		
+		mapp.invoke("ns", "method", {
+			"params" : params   //参数通过json封装
+			"callback" : mapp.callback(handler), //生成回调名字
+		});
+
+
+* 如果有多个参数调用：
+
+		mapp.invoke("ns", "method", param1, param2 /*,...*/,callback);
+		
+		
+```
+
+
+### JSService的具体实现－插件运行机制
+
+JSService部分是基于Phonegap的Cordova引擎的基础上简化而来，其基本原理参照Cordova的引擎原理如图所示：
+
+{% img /images/JSBridgeIOS_1.png %}
+
+
+一般app中都有自己定制的Webcontainer，为了更好的跟已有项目相融合，在Cordova的基础上我们进行了简化，通过JSAPIService服务的方式进行插件扩展开发如图所示：
+
+{% img /images/JSBridgeIOS_2.png %}
+
+
+
+本JSBridge是基于Phonegap的Cordova引擎的基础上简化而来, Android平台Webview和JS的交互方式共有三种:
+
+1. ExposedJsApi：js直接调用java对象的方法；（同步）
+2. 重载chromeClient的prompt 截获方案；(异步)
+3. url截获+webview.loadUrl回调的方案；（异步）
+
+为了和IOS保持一致的JSAPI，只能选用第三套方案；
+
+
+[具体实现参考源码]()
+
+### 基于JSService的插件开发、配置和使用
+
+#### IOS平台
+
+
+在Native部分，定义一个模块插件对应于创建一个插件类, 模块中的每个插件接口对应插件类中某个方法。
+集成LDJSBridge_IOS框架之后，只需要继承框架中的插件基类LDJSPlugin，如下所示：
+
+* 插件接口定义
+
+```
+	#import "LDJSPlugin.h"
+	@interface LDPDevice : LDJSPlugin
+	{}
+	
+	//@func 获取设备信息
+	- (void)getDeviceInfo:(LDJSInvokedUrlCommand*)command;
+	
+	@end
+
+```	
+
+
+* 自定义插件接口实现
+
+
+```
+@implementation LDPDevice
+
+/**
+ *@func 获取设备信息
+ */
+- (void)getDeviceInfo:(LDJSInvokedUrlCommand*)command{
+    //读取设备信息
+    NSMutableDictionary* deviceProperties = [NSMutableDictionary dictionaryWithCapacity:4];
+    
+    UIDevice* device = [UIDevice currentDevice];
+    [deviceProperties setObject:[device systemName] forKey:@"systemName"];
+    [deviceProperties setObject:[device systemVersion] forKey:@"systemVersion"];
+    [deviceProperties setObject:[device model] forKey:@"model"];
+    [deviceProperties setObject:[device modelVersion] forKey:@"modelVersion"];
+    [deviceProperties setObject:[self uniqueAppInstanceIdentifier] forKey:@"identifier"];
+    
+    LDJSPluginResult* pluginResult = [LDJSPluginResult resultWithStatus:LDJSCommandStatus_OK messageAsDictionary:[NSDictionary dictionaryWithDictionary:deviceProperties]];
+    
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
+@end
+```
+
+
+* 在plugin.json文件中对plugin插件的统一配置
+
+```
+{
+    "update": "",
+    "module": "mapp",
+    "plugins": [
+        {
+            "pluginname": "device",
+            "pluginclass": "LDPDevice",
+            "exports": [
+                {
+                    "showmethod": "getDeviceInfo",
+                    "realmethod": "getDeviceInfo"
+                }
+            ]
+        }
+	]
+}
+```
+
+
+
+* 在webContainer中对JSService初始化, 当初始化完成之后，向前端页面发送一个ReadyEvent，前端即可开始调用JSAPI接口；
+
+```
+//注册插件Service
+    if(_bridgeService == nil){
+        _bridgeService = [[LDJSService alloc] initBridgeServiceWithConfig:@"PluginConfig.json"];
+    }
+    [_bridgeService connect:_webview Controller:self];
+
+
+/**
+ Called when the webview finishes loading.  This stops the activity view.
+ */
+- (void)webViewDidFinishLoad:(UIWebView*)theWebView{
+    NSLog(@"Finished load of: %@", theWebView.request.URL);
+    //当webview finish load之后，发event事件通知前端JSBridgeService已经就绪
+    //监听事件由各个产品自行决定
+    [_bridgeService readyWithEvent:@"LDJSBridgeServiceReady"];
+}
+
+```
+
+
+#### Android平台
+
+
+
+* 插件接口定义
+
+```
+	public class LDPDevice extends LDJSPlugin {
+   		public static final String TAG = "Device";
+
+    	/**
+   	 	 * Constructor.
+   	 	 */
+   		public LDPDevice() {
+   		}
+   	}
+   	
+```
+
+* LDJSPlugin 属性方法说明
+
+```
+	/**
+	* Plugins must extend this class and override one of the execute methods.
+	*/
+	public class LDJSPlugin {
+   		public String id;
+   		
+   		//在插件初始化的时候，会初始化当前插件所属的webview和controller
+		//供插件方法接口 返回处理结果
+	    public WebView webView; 
+		public LDJSActivityInterface activityInterface;
+		
+		//所有自定义插件需要重载此方法
+		public boolean execute(String action, LDJSParams args, LDJSCallbackContext callbackContext) throws JSONException {
+       		return false;
+   		}
+   		
+   	}	
+   	
+```
+
+* 自定义插件接口实现
+
+```
+@Override
+ 	public boolean execute(String action, LDJSParams args, LDJSCallbackContext callbackContext) throws JSONException {
+     	if (action.equals("getDeviceInfo")) {
+         	JSONObject r = new JSONObject();
+         	r.put("uuid", LDPDevice.uuid);
+         	r.put("version", this.getOSVersion());
+         	r.put("platform", this.getPlatform());
+         	r.put("model", this.getModel());
+         	callbackContext.success(r);
+     	}
+     	else {
+         	return false;
+     	}
+     	return true;
+ 	}
+
+```
+
+
+* 在封装的webContainer中注册服务并调用：
+
+```
+  /**
+     * 初始化Activity,打开网页，注册插件服务
+     */
+    public void initActivity() {
+        //创建webview和显示view
+    	createGapView();
+    	createViews();
+
+    	//注册插件服务
+    	if(jsBridgeService == null){
+    		jsBridgeService = new LDJSService(_webview, this, "PluginConfig.json");
+    	}
+
+    	//加载请求
+    	if(this.url != null && !this.url.equalsIgnoreCase("")){
+    		_webview.loadUrl(this.url);
+    	}
+    }
+    
+    
+    
+ /**
+     * 初始化webview，如果需要调用JSAPI，必须为Webview注册WebViewClient和WebChromeClient
+     */
+    @SuppressLint("SetJavaScriptEnabled")
+    public void createGapView(){
+    	if(_webview == null){
+    		_webview = new WebView(LDPBaseWebViewActivity.this, null);
+    		//设置允许webview和javascript交互
+            _webview.getSettings().setJavaScriptEnabled(true);
+            _webview.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+
+    		//绑定webviewclient
+    		_webviewClient = new WebViewClient(){
+    			public void onPageStarted(WebView view, String url, Bitmap favicon){
+    				super.onPageStarted(view, url, favicon);
+    				isWebviewStarted = true;
+    			}
+
+    			public void onPageFinished(WebView view, String url) {
+    				super.onPageFinished(view, url);
+    		        	//发送事件通知前端
+    				if(isWebviewStarted){
+    					//在page加载之后，加载核心JS，前端页面可以在document.ready函数中直接调用了；
+        				jsBridgeService.onWebPageFinished();
+    		        		jsBridgeService.readyWithEventName("LDJSBridgeServiceReady");
+    				}
+    				isWebviewStarted = false;
+    			}
+
+    			  @Override
+    			  public boolean shouldOverrideUrlLoading(WebView view, String url) {
+    				  	if(url.startsWith("about:")){
+    				  		return true;
+    				  	}
+    					if(url.startsWith(LDJSService.LDJSBridgeScheme)){
+    						//处理JSBridge特定的Scheme
+							jsBridgeService.handleURLFromWebview(url);
+    						return true;
+    					}
+
+    					return false;
+    			  }
+    		};
+
+    		_webview.setWebViewClient(_webviewClient);
+    		//绑定chromeClient
+    		_webviewChromeClient = new WebChromeClient(){
+    			@Override
+    		    public boolean onJsAlert(WebView view, String url, String message,
+    		            JsResult result) {
+    		        return super.onJsAlert(view, url, message, result);
+    			}
+    		};
+    		_webview.setWebChromeClient(_webviewChromeClient);
+    	}
+    }
+
+
+```
+
+
+### 结束
+
+第一次写博客，写得糙和不好的地方望见谅，本人将会不断改善和提高自身能力；目前源码部分还没有得到许可上传到Github部分（待得到许可，应该问题不大，一定第一时间上传），所以本博客主要提供大概的解决方案，望能够和有需要的人士交流沟通具体实现方式的差异。
