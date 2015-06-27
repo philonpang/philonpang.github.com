@@ -5,7 +5,7 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>philon的博客</title>
+  <title>IOS平台Hotfix框架:JSPatch学习笔记及和WaxPatch的集成 - philon的博客</title>
   <meta name="author" content="philon">
 
   
@@ -18,7 +18,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://ios.devphilon.com/">
+  <link rel="canonical" href="http://ios.devphilon.com/blog/2015/06/26/jspatchxue-xi-yi-ji-iosping-tai-hotfixzai-xian-bu-ding-guan-li-fang-an-shi-xian/">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/atom.xml" rel="alternate" title="philon的博客" type="application/atom+xml">
@@ -64,15 +64,12 @@
 </nav>
   <div id="main">
     <div id="content">
-      <div class="blog-index">
+      <div>
+<article class="hentry" role="article">
   
-  
-  
-    <article>
-      
   <header>
     
-      <h1 class="entry-title"><a href="/blog/2015/06/26/jspatchxue-xi-yi-ji-iosping-tai-hotfixzai-xian-bu-ding-guan-li-fang-an-shi-xian/">IOS平台Hotfix框架:JSPatch学习笔记及和WaxPatch的集成</a></h1>
+      <h1 class="entry-title">IOS平台Hotfix框架:JSPatch学习笔记及和WaxPatch的集成</h1>
     
     
       <p class="meta">
@@ -95,7 +92,7 @@
   </header>
 
 
-  <div class="entry-content"><h2>关于HotfixPatch</h2>
+<div class="entry-content"><h2>关于HotfixPatch</h2>
 
 <p>在IOS开发领域，由于Apple严格的审核标准和低效率，IOS应用的发版速度极慢，稍微大型的app发版基本上都在一个月以上，所以代码热更新（HotfixPatch）对于IOS应用来说就显得尤其重要。</p>
 
@@ -794,22 +791,16 @@ OC的动态语言特性是在runtime system(全部用C实现，Apple维护了一
 
 <p>先写这么多了，本来想写一下我们的patch管理方案，觉得没有什么可说了，就不写了～</p>
 </div>
-  
-  
 
 
-    </article>
-  
-  
-    <article>
+  <footer>
+    <p class="meta">
       
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2015/06/04/reactivecocoa-mvvm/">基于ReactiveCocoa的MVVM探索</a></h1>
-    
-    
-      <p class="meta">
-        
+  
+
+<span class="byline author vcard">Posted by <span class="fn">philon</span></span>
+
+      
 
 
 
@@ -821,524 +812,68 @@ OC的动态语言特性是在runtime system(全部用C实现，Apple维护了一
   
 
 
-<time datetime="2015-06-04T15:49:37+08:00" pubdate data-updated="true"></time>
-        
-      </p>
+<time datetime="2015-06-26T14:59:32+08:00" pubdate data-updated="true"></time>
+      
+
+
+    </p>
+    <p class="meta">
+      原创文章，版权声明：自由转载-非商用-非衍生-保持署名 | <a href="http://creativecommons.org/licenses/by-nc-nd/3.0/deed.zh" id="">Creative Commons BY-NC-ND 3.0</a>
+
+    </p>
     
-  </header>
-
-
-  <div class="entry-content"><h2>前言</h2>
-
-<p>一直觉得对于具体功能模块的设计模式来说，没有什么值得研究和讨论的。觉得iOS提供的MVC模式已经能够很好的利用到产品的开发中去，对于大多数开发人员来说，最熟悉最得心应手的设计模式莫过于此。</p>
-
-<p>但是随着业务需求的膨涨、页面交互的体验优化、业务模式的逐渐丰富，我们一直习以为常的MVC模式中，某些Controller的UI交互代码＋业务逻辑代码已经达到上千行的规模。当我们维护app、或进行新功能的扩充、或提供其他模块的调用接口时，复杂混乱的controller逻辑让我们头疼不已。</p>
-
-<p>于是我们开始将Controlller的业务逻辑代码进行拆分，拆分部分逐渐形成了viewModel层，于是在现下移动客户端领域开始兴起了MVVM模式(V-VM-M)。随着FaceBook的“<a href="https://github.com/facebook/react-native">React Native</a>“跨平台开发框架，以及之前就出现的<a href="https://github.com/ReactiveCocoa/ReactiveCocoa">ReactiveCocoa</a>响应式编程模式的推出，MVVM设计模式在IOS移动端正逐渐被得心应手的开始使用。</p>
-
-<p>本文在在学习了解React Native和ReactiveCocoa的基础上，对在IOS开发框架中如何采用MVVM模式进行了一定的探索和实践，并在实际的工程项目中如何利用MVC和MVVM做混合模式开发给出一定的建议，部分内容可能偏理论一点，不妥之处，望指教更正。</p>
-
-<p>关于ReactiveCocoa和MVVM的学习资料：<a href="https://www.google.com/stars/mzm33xlrlwxgw/profile/folio/ssf_68299747347db8bc?hl=zh-CN">点击这里-Chrome书签</a></p>
-
-<p>通过学习资料了解完ReactiveCocoa的基本概念之后，我们可以从下面一张图对ReactiveCocoa有一个整体理解：
-<img src="/images/FRP_ReactiveCocoa_large.png"></p>
-
-<p>核心概念是RACSignal，相当于一个信号管道，接收信号源的信号，将信号依次发送给订阅者，在RACSignal基础上我们在MVVM模式下用得比较多的是RACCommand，信号到来开始执行，每次执行产生一个回调Signal。 具体的理解可以参考学习资料，讲的很清楚。</p>
-
-<p>目前最新版本的ReactiveCocoa开始支持Swift，要求最低发布版本为IOS8，所以我们可以使用支持IOS6的最高版本， 当接入ReactiveCocoa之后，在性能上会慢1～2倍，但不影响app的直接体验，另外在调试部分也需要程序员看懂信号的来源和出处，打断点进行调试。</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>platform :ios, '6.0'
-</span><span class='line'>inhibit_all_warnings!
-</span><span class='line'>
-</span><span class='line'>workspace 'WTestReactiveCocoa'
-</span><span class='line'>xcodeproj 'TestReactiveCocoa'
-</span><span class='line'>
-</span><span class='line'>target :TestReactiveCocoa do
-</span><span class='line'>    pod 'ReactiveCocoa', '~&gt; 2.5'
-</span><span class='line'>
-</span><span class='line'>    #设置pod target需要link的工程target
-</span><span class='line'>    link_with 'TestReactiveCocoa'
-</span><span class='line'>end
-</span><span class='line'>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>本文主要介绍通过ReactiveCocoa进行MVVM模式的开发实践，具体的应用模式如下：</p>
-
-<p><img src="/images/MVVMReactiveCocoa.png"></p>
-
-<h2>一、关于view层和viewModel层的Binding</h2>
-
-<p>对于某个业务功能（这里指某个controller），从代码集来看，肯定是一堆系统原生view组件和自定义view组件在controller.view中的聚集。所有的叶子view组件节点都是以controller.view为根节点，作为其subview存在于controller中。所以view层其实可以看作是以controller.view为根节点的树状结构，负责view的创建、布局、和viewModel的binding、以及页面的交互效果（包括动画、跳转、切换等），只涉及到页面交互处理，不涉及业务逻辑的处理。</p>
-
-<p>而对于viewModel来说，一般和controller是一一对应的，view层可以强依赖viewModel层，而viewModel层一定不能引用view层的任何对象。 view层中涉及业务逻辑处理的任何交互均需要通过signal信号告知viewModel层或者直接调用viewModel的command命令执行，同时view层也可以监听viewModel中定义的signal或者command执行发出的signal完成页面交互逻辑的处理。</p>
-
-<h3>具体处理过程</h3>
-
-<p>在controller初始化时，为该controller初始化一个对应的viewModel对象。这个viewModel可以只是个壳，viewModel中的具体属性对象可以通过前一个controller赋值初始化，也可以在当前controller中发出某个signal之后通过Model层提供的service进行初始化。</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>- (instancetype)init
-</span><span class='line'>{
-</span><span class='line'>    if (self = [super init]) {
-</span><span class='line'>        _fhcViewModel = [CPArenaFootHallContainerViewModel new];
-</span><span class='line'>        [self setupContent];
-</span><span class='line'>    }
-</span><span class='line'>    return self;
-</span><span class='line'>}
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>完成初始化之后，需要在viewDidLoad方法中在view组件创建之后，完成view层和viewModel层的binding。</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>- (void)viewDidLoad
-</span><span class='line'>{
-</span><span class='line'>    [super viewDidLoad];
-</span><span class='line'>    [self setupContent];
-</span><span class='line'>    [self bindViewModel];
-</span><span class='line'>}
-</span><span class='line'>
-</span><span class='line'>/**
-</span><span class='line'> * 将controller中的view和ViewModel进行binding
-</span><span class='line'> */
-</span><span class='line'>-(void) bindViewModel{
-</span><span class='line'>    //监控初始化hallModel command的执行
-</span><span class='line'>    @weakify(self);
-</span><span class='line'>    [[self.fhcViewModel.loadHallModel execute:@(YES)] subscribeNext:^(id statusCode){
-</span><span class='line'>      //to do something
-</span><span class='line'>    }];
-</span><span class='line'> }
-</span></code></pre></td></tr></table></div></figure>
-
-
-
-
-<blockquote><p>tip: </p><p>(1) 并不是所有的view组件都需要和viewModel绑定，通常如果view组件的显示属性是常量定义（如显示标题、某个业务组件的icon图片名称), 这些属性没有必要放入viewModel层，也就没有必要进行binding。</p><p>(2) 对于controller中跟viewModel中的对象息息相关的各个view对象（获取textField的输入值作为viewModel中某个operation的输入，点击某个按钮执行viewModel的某个command）, 则需要在controller中进行绑定。</p></blockquote>
-
-
-<p>不同的情景其binding的方法也不一样：</p>
-
-<ul>
-<li>情景1:</li>
-</ul>
-
-
-<p>如果subview是UIkit自带的view组件（如label，button, textfield, textview, imageView, alert, action sheet等等），则可以直接通过ReactiveCocoa直接进行view和viewModel之间的绑定。</p>
-
-<p>ReactiveCocoa提供绑定category的的基本View组件包括：MKAnnotationView、UIActionSheet、UIAlertView、UIBarButtonItem、UIButton、UICollectionReusableView、UIControl、UIDatePicker、UIGestureRecognizer、UIImagePickerController、UIRefreshControl、UISegmentedControl、UISlider、UIStepper、UISwitch、UITableViewCell、UITableViewHeaderFooterView、UITextField、UITextView。</p>
-
-<p>而我们平常经常用到的可能会有UITextField，UITextView、UIControl、UIButton、UIActionSheet、UIAlertView这几个，具体的使用方法在ReativeCoccoa的<a href="http://www.itiger.me/?p=38">示例</a>中可以查看。其封装核心是监控view组件的delegate方法或者selector方法执行，每当执行时发送一个执行信号；view层将该信号和viewModel层进行绑定，自己也可以监控这些信号完成某些交互行为。</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>- (void)bindViewModel {
-</span><span class='line'>    self.title = self.viewModel.title;
-</span><span class='line'>    RAC(self.viewModel, searchText) = self.searchTextField.rac_textSignal;
-</span><span class='line'>    self.searchButton.rac_command = self.viewModel.executeSearch;
-</span><span class='line'>    RAC([UIApplication sharedApplication], networkActivityIndicatorVisible) = self.viewModel.executeSearch.executing;
-</span><span class='line'>    RAC(self.loadingIndicator, hidden) = [self.viewModel.executeSearch.executing not];
-</span><span class='line'>    
-</span><span class='line'>    [self.viewModel.executeSearch.executionSignals
-</span><span class='line'>     subscribeNext:^(id x) {
-</span><span class='line'>         [self.searchTextField resignFirstResponder];
-</span><span class='line'>     }];
-</span><span class='line'>}
-</span><span class='line'>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<ul>
-<li>情景2:</li>
-</ul>
-
-
-<p>情景2主要是针对subview是通过单独文件封装的view组件，如UITableView的自定义tableviewCell，某些在基础view组件上进行封装的view组件等。如果是新写这些view组件，可以考虑通过ReactiveCocoa的方式完成；如果是已经成型的组件，则需要根据具体情况看是否改造成响应式模式；</p>
-
-<p>（1）如果组件中只绑定一两个viewModel中非集合类型的属性值，则直接通过开放view组件的属性值，在controller中完成binding； 具体的binding方法和情景1类似。</p>
-
-<p>（2）如果组件中有较多的基础view组件，且都和viewModel相关，则考虑为该view组件定义一个view对象，并作为view组件的属性。controller将view组件的viewModel属性和controller对应的viewModel相应属性绑定，当controller中对应的viewModel发生变化，将会把变化传递给view 组件，在view组件中根据viewModel的属性变化去改变具体的基础view组件显示值；</p>
-
-<p><strong><em>这个跟Reative Native的props属性传递的思想类似：对于一些component，通过属性传入，在componnet中可以通过这些props去对基础UI组件赋值，当传入属性值改变之后，对应component的相应UI组件的显示值也会发生变化。</em></strong></p>
-
-<p>在引入ReactiveCocoa之前，view组件和viewModel的对应如下所示：</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>- (void)setContent:(CPArenaMatchViewModel *)content
-</span><span class='line'>{
-</span><span class='line'>    if ([content.sps count] != 3 || [content.supportRates count] != 3) {
-</span><span class='line'>        return;
-</span><span class='line'>    }
-</span><span class='line'>    
-</span><span class='line'>    [self.winButton setHeaderText:content.teamAName];
-</span><span class='line'>    [self.winButton setDetailText:[NSString stringWithFormat:@"胜 %@",content.sps[0]]];
-</span><span class='line'>    [self.drawButton setHeaderText:@"平"];
-</span><span class='line'>}
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>在引入ReactiveCocoa之后，具体viewModel和view组件的binding过程则根情景1种的binding类似。</p>
-
-<ul>
-<li>情景3:</li>
-</ul>
-
-
-<p>对于比较复杂的系统view，如tableView、colletionView、pageView等，目前ReactiveCocoa中没有提供category进行绑定。</p>
-
-<p>个人觉得对tableview整体进行封装没有必要，一方面对于app来说，大多数复杂的界面都是在tableview的基础上定制完成的，定制越多，封装就越没有意义；另外这些复杂的系统view组件一般提供了很好的扩展性和自刷新机制（ReloadData），如tableview的section、header view、footer view、tableviewcell等，这些扩展性就对应了情景2种提到的第二种情况。</p>
-
-<p>对于这种情景的处理方法：我们可以通过传入一个viewModel对象给自定义的view或者cell，当页面刷新的时候，可以根据监控到的传入viewModel变化刷新界面；即使是非定制的view，则可以对view的属性直接通过controller对应的viewModel直接赋值；</p>
-
-<p>截取了tableView:cellForRowAtIndexPath的绑定代码：</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>
-</span><span class='line'>    if ([moduleKey isEqualToString:kArenaHallDaily]) {
-</span><span class='line'>        
-</span><span class='line'>        static NSString *dailyIdentifier = @"dailyCell";
-</span><span class='line'>        CPArenaHallDailyCell *cell = [tableView dequeueReusableCellWithIdentifier:dailyIdentifier];
-</span><span class='line'>        if (cell == nil) {
-</span><span class='line'>          ...
-</span><span class='line'>        }
-</span><span class='line'>        
-</span><span class='line'>        //直接读取viewModel中的值进行view组件的赋值，当tableview reload的时候，重新读取一次
-</span><span class='line'>        [cell setContent:[self.fhViewModel.hallModel arenaHallDailyContent]];
-</span><span class='line'>        return cell;
-</span><span class='line'>        
-</span><span class='line'>    } 
-</span></code></pre></td></tr></table></div></figure>
-
-
-<ul>
-<li>情景4:</li>
-</ul>
-
-
-<p>而某些container-controller（tabController和NavigationController除外），在两个或者多个controller之间切换，controller.view中基本没有交互，交互主要在navigationBar上。NavigationBar的交互主要是controller跳转和切换，可能需要从Model中获取一些数据进行判定。</p>
-
-<p>对于这种情景，我觉得没有必要通过MVVM模式进行处理，直接按照MVC模式处理即可，Model的获取通过Model层提供的APIService获取（单例），其跳转或者切换的controller中可以直接通过APIService获取之前已经初始化的Model对象；</p>
-
-<h3>tip</h3>
-
-<blockquote><p>(1) 关于view的常量定义仍然属于View层，没有必要将其放进viewModel中（viewModel还只是保存view需要跟Model打交道，对其进行加工的部分）；</p><p>(2) 在view层，对于无交互且无数据刷新需求的view组件不进行绑定； 对于有交互的view组件，如果交互不会对viewModel进行改变，也无需绑定；对于一些需要等待viewModel初始化完成才能进行数据显示的view组件，则可以考虑统一监控viewModel，当viewModel有更新的时候统一刷新各个view组件；</p><p>(3) 一个controller拥有一个viewModel， 比较复杂的view组件也可以拥有一个viewModel，但其viewModel的初始化在controller的viewModel中完成；</p></blockquote>
-
-
-<h2>关于controller的简化和跳转</h2>
-
-<p>引入ReactiveCocoa有两个目的：</p>
-
-<p>第一个:是在controller中一些交互比较频繁、状态逻辑较复杂的情况，可以通过ReactiveCocoa的Signal机制监听view组件的状态变化简化状态逻辑的判定。 比如说ReactiveCocoa的官方经典案例：用户名密码登录框；</p>
-
-<p>第二个目的就是本文主要阐述的方向，通过引入ReactiveCocoa简化controller， 将controller中的交互逻辑和业务逻辑分开，形成有效的MVVM开发模式。在将MVVM模式应用的具体的业务组件工程中可能会引出下面一些问题：</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>1. controller之间的跳转到底应该放在view层还是viewModel层？
-</span><span class='line'>2. 什么代码可以从controller中分离，如何分离？
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h3>Controller间的跳转</h3>
-
-<p>在传统MVC模式下的controller跳转，需要在当前controller中import另外一个controller头文件，然后传入参数初始化controller，再调用navigation-push 或者 viewController-present， 相当于controller跳转是放到了view层。传统的MVC模式给我们带来的痛苦是无法对controller层进行单元测试，并且controlle中业务逻辑和交互逻辑混乱不堪，所以我们才希望通过MVVC模式来简化controller中的代码；</p>
-
-<p>当我们将业务逻辑拆分到viewModel中，那么controller的跳转是继续留在view层还是将其拆分到viewModel层呢？我们来看一下分别放在两个层的优缺点：</p>
-
-<ol>
-<li><p>如果继续放在view层：MVVM模式号称的去UI的测试也就无法去验证跳转逻辑，无法做完整性测试；并且每个controller的viewModel是孤立的，只能对其做单元测试；</p></li>
-<li><p>如果直接拆分放到viewModel层，它就背离了我们之前的分层标准，viewModel层绝对不能依赖view层的任何对象；如果我们通过viewModel层提供的service去做跳转，在MVC模式和MVVM模式混合开发的工程中，则稍显复杂</p></li>
-</ol>
-
-
-<p>所以本文觉得还是把controller的跳转继续放在view层；相当于通过view层的navigator去完成跳转，其实这跟React Native的跳转也是不谋而合的（在react Native中，每一个controller都被当作是navigator下的一个scene，每个scene跳转的时候都会保留对全局navigator的引用，直接在view层的代码中调用navigator.push完成）。另外controller的跳转对于整个app来说，也是属于view交互的定性。</p>
-
-<h3>交互逻辑和业务逻辑如何分离？</h3>
-
-<p>前文提到MVVM模式的主要工作就是将controller中的业务逻辑拆分出来，那在一个controller中如何定义业务逻辑，具体哪些代码需要拆分到viewModel中呢？前文也提到view层的主要工作是完成view的创建、布局、动画，以及交互和跳转处理。</p>
-
-<p>view组件创建过程中，一些属性值需要在创建时通过参数传入，如果这些属性值是通过常量（如标题、按钮文字、alert提示文字、按钮的图片名称等），则不需要放到viewModel中；如果属性值是需要从Model中获取的数据（有些时候需要加工处理）进行初始化，则需要将其通过viewModel提供，一开始可以先传入一个空的viewModel，并建立view属性和viewModel的binding，当viewModel初始化完成或者更新的时候，通过signal更新view组件。另外在创建、布局view的时候可能需要一些model属性的判定，这些判断逻辑直接通过引用viewModel的数值即可。view层除开viewModel的绑定之外，只能读取viewModel中的值去初始化界面。</p>
-
-<p>而交互逻辑和业务逻辑的主要交叉点出现在controller的生命周期和view组件的action操作中：</p>
-
-<ol>
-<li><p>比如说contorller的生命周期，当controller初始化并push之后，会先跳转到viewDidload中初始化subview，然后在viewWillAppear中完成布局，并向viewModel或者model层请求数据。 或者在在生命周期中需要监听某些事件通知、执行某些定时器等，这些逻辑代码就应该放到viewModel中。</p></li>
-<li><p>另外对于view组件的action操作，当touch事件发生之后，既要完成view的显示或者隐藏、或重新布局、或者更新数据，又需要向viewModel层发起某些操作，这些向viewModel发起的操作逻辑也必须放到viewModel中；</p></li>
-</ol>
-
-
-<blockquote><p>当我们把这些业务逻辑拆分出去之后，<strong><em>如何在某些交互或者某个生命周期状态发生时自动调用对应的业务逻辑呢？业务逻辑在viewModel中又是如何组织的呢？</em></strong></p></blockquote>
-
-<p>业务逻辑在viewModel中通过RACCommand进行管理，当调起某个command的执行之后，首先完成业务处理，并通过signal（return value）通知调用者发起回调。</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>//执行添加leaveTimer
-</span><span class='line'>@weakify(self);
-</span><span class='line'>self.addLeaveTimerCommand = [[RACCommand alloc] initWithSignalBlock:^RACSignal *(id input) {
-</span><span class='line'>    @strongify(self);
-</span><span class='line'>    [self addLeaveTimer];
-</span><span class='line'>    return [RACSignal return:@(YES)];
-</span><span class='line'>}];
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>如果业务处理是异步的，则需要在viewModel中定义全局Signal（RACSubject），当异步业务处理执行完成或者错误的时候，通过RACSubject通知调用者。</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>//初始化更新Signal，供view层监听
-</span><span class='line'>self.refreshResultSignal = [[RACSubject subject] setNameWithFormat:@"CPArenaFottHallVM-refreshResultSignal"];
-</span><span class='line'>    
-</span><span class='line'>    
-</span><span class='line'>/**
-</span><span class='line'> * 重新刷新hallModel（hallModel其实应该是一个比较通用的ViewModel）
-</span><span class='line'> */
-</span><span class='line'>-(void)refreshContent
-</span><span class='line'>{
-</span><span class='line'>    void (^ completion)(void) = ^{
-</span><span class='line'>        [self.refreshResultSignal sendCompleted];
-</span><span class='line'>    };
-</span><span class='line'>    
-</span><span class='line'>    //通过service重新load HallModel数据
-</span><span class='line'>    if(1){
-</span><span class='line'>        [self.refreshResultSignal sendNext:@"hello"];
-</span><span class='line'>        completion();
-</span><span class='line'>    }
-</span><span class='line'>}
-</span><span class='line'>
-</span><span class='line'>    </span></code></pre></td></tr></table></div></figure>
-
-
-<p>生命周期状态的监听我们通过rac_signalforSelector去完成，某些view组件的action，则直接通过view组件的category，或者监听view组件的delegate回调来完成监听。也可以对这些信号进行组合、过滤、map、返回参数的封装，这些都是ReactiveCocoa提供的方法；</p>
-
-<p>监听controller生命周期状态如下：</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>//当view层disappear时，通知viewModel层开始计时
-</span><span class='line'>[[self rac_signalForSelector:@selector(viewWillDisappear:)] subscribeNext:^(id x) {
-</span><span class='line'>    @strongify(self);
-</span><span class='line'>    [self.fhViewModel.addLeaveTimerCommand execute:nil];
-</span><span class='line'>}];
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'>//监控view层的显示Signal
-</span><span class='line'>[[self rac_signalForSelector:@selector(viewWillAppear:)] subscribeNext:^(id x) {
-</span><span class='line'>    @strongify(self);
-</span><span class='line'>    [self.fhViewModel.refreshCheckCommand execute:nil];
-</span><span class='line'>}];
-</span><span class='line'>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>监听view组件的delegate回调如下：</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>//监听当前HeadView的Accessory的click动作
-</span><span class='line'>RACSignal *clickAccessorySignal = [self rac_signalForSelector:@selector(didClickAccessoryViewInHeaderView:) fromProtocol:@protocol(CPArenaHeaderViewDelegate)];
-</span><span class='line'>[[clickAccessorySignal map:^id(RACTuple *tuple) {
-</span><span class='line'>    return tuple.first;
-</span><span class='line'>}] subscribeNext:^(CPArenaHeaderView *headerView) {
-</span><span class='line'>  //to do something
-</span><span class='line'>}
-</span><span class='line'>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h3>tip:</h3>
-
-<blockquote><ol>
-<li>将某些delegate方法通过signal监听之后，其实是可以删去这些delegate方法，但是编译器报警告，所以保留原有的delegate方法，只是方法实现为空；真正的方法实现放到Signal监听之中；</li>
-</ol>
-</blockquote>
-
-<h2>viewModel层和Model层之间的交互</h2>
-
-<p>在Model层,ReactiveCocoa提供如下基础对象signal改造的支持：NSArray、NSData、NSDictionary、NSEnumerator、NSFileHandle、NSIndexSet、NSInvocation
-NSNotificationCenter、NSObject、NSOrderedSet、NSSet、NSString、NSURLConnection、NSUserDefaults. 如果工程中的Model层也是通过响应式编程实现，这些category可能对Model层通知viewModel层有很大的作用，目前还没有对model层响应式编程仔细研究（这不是必要的），这里说一下Model层在MVVM模式的主要工作模式。</p>
-
-<h3>APIService的发起路径和过程</h3>
-
-<p>在MVC模式下，我们通常直接在controller中创建Model层提供的APIService去获取数据。而在MVVM模式中，相应APIService的请求会转移到ViewModel层，而ViewModel的初始化是根据Model层的访问完成的，其具体访问路径如下：</p>
-
-<p>（1）当点击某个按钮或者发起初始化signal，点击动作或者创建会向viewModel发出一个signal执行RACCommand（RACCommand，执行 一次产生一个signal， 这个command在viewModel层定义和创建），当前view层会定监听RACCommand的执行，并根据返回的event实时更新view；</p>
-
-<p>（2）viewModel接受这个signal：</p>
-
-<ul>
-<li><p>如果signal是创建ViewModel，则判断当前viewModel是否初始化，如果没有，则向Model层发起一个 initial operation；</p></li>
-<li><p>如果signal改变了viewModel中的值，viewModel的变化会自动通知binding的view组件更新；此外如果viewModel的改变和Model层有关联，则向Model层发起一个update operation；</p></li>
-<li><p>当前viewModel向Model发起operation之后，当前viewModel需要定制监控发起的这个signal，并将后台返回的signal信号进行处理，或更新viewModel，或向view层监控的signal发送各个operation的完成事件；</p></li>
-</ul>
-
-
-<p>（3）Model层不仅仅是实体对象的定义，还包括APIService的实现，APIService通过向后台发送request请求，当请求返回的时候能够根据实体定义初始化实体对象，并在Model层持有（或进一步持久化，保存为coredata或者db中）；</p>
-
-<ul>
-<li><p>当Model层接受到viewModel（MVVC）或者controller（MVC）的 initial operation时，查看Model层持有的对象，如果存在直接返回，如果不存在，则通过APIService向后台或者本地持久化发出请求，并将请求状态和结果push给ViewModel层或者controller层；</p></li>
-<li><p>当Model层接收到update operation时，一般是先通过APIService发送update operation，根据operation的结果操作本地持久化对象（或者重新拉取一遍，或者直接在update operation中返回数据对原有持久对象进行更换）；</p></li>
-</ul>
-
-
-<h3>关于Model和网络请求的生命周期</h3>
-
-<p>关于Model层什么时机进行初始化，Model层持有对象的生命周期，以及网络请求的生命周期？</p>
-
-<ul>
-<li>Model层的初始化，分为不同的场景，初始化的时机也不一样：</li>
-</ul>
-
-
-<p>(1) 如果Model是全局需要的，如UserModel，则可以在appdelegate中直接初始化；</p>
-
-<p>(2) 如果是MVC模式，则直接在controller中直接调用APIService初始化；</p>
-
-<p>(3) 如果是MVVM模式，则通过调用viewModel中进行初始化；</p>
-
-<ul>
-<li>生命周期：</li>
-</ul>
-
-
-<p>(1) 如果是全局Model，则通过单例Service进行保持；</p>
-
-<p>(2) 如果是跟controller保持一致的，则通过普通service进行初始化；</p>
-
-<ul>
-<li>网络请求的生命周期：</li>
-</ul>
-
-
-<p>(1) 如果是单例的service，网络请求的生命周期肯定小于单例，service持久化的Model对象也会一直存在；</p>
-
-<p>(2) 如果是非单例service，service持久化的Model对象随着service的dealloc而销毁， 网络请求的生命周期也会被service cancel掉；仍然小于service；</p>
+      <div class="sharing">
+  
+  
+  
+  
+    <style>
+    .flash-video{display:none;}
+</style>
+<!-- JiaThis Button BEGIN -->
+<div id="ckepop">
+<span class="jiathis_txt">分享到：</span>
+<a class="jiathis_button_tsina">新浪微博</a>
+<a class="jiathis_button_t163">网易微博</a>
+<a class="jiathis_button_tqq">腾讯微博</a>
+<a class="jiathis_button_renren">人人网</a>
+<a class="jiathis_button_douban">豆瓣</a>
+
+<a href="http://www.jiathis.com/share?uid=1574434" class="jiathis jiathis_txt jiathis_separator jtico jtico_jiathis" target="_blank">更多</a>
+<a class="jiathis_counter_style"></a>
 </div>
-  
-  
+<script type="text/javascript" >
+var jiathis_config={
+    data_track_clickback:true,
+    sm:"t163,tsina,tqq,renren,douban",
+    summary:"",
+    hideMore:false
+}
+</script>
+<script type="text/javascript" src="http://v3.jiathis.com/code/jia.js" charset="utf-8"></script>
+<!-- JiaThis Button END -->
 
+<br />
+<!-- UY BEGIN -->
+<div id="uyan_frame"></div>
+<script type="text/javascript" id="UYScript" src="http://v1.uyan.cc/js/iframe.js?UYUserId=2033665" async=""></script>
+<!-- UY END -->
 
-    </article>
   
-  <div class="pagination">
-    
-      <a class="prev" href="/page2">&larr; Older</a>
-    
-    <a href="/blog/archives">Blog Archives</a>
-    
-  </div>
 </div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2015/06/04/reactivecocoa-mvvm/" title="Previous Post: 基于ReactiveCocoa的MVVM探索">&laquo; 基于ReactiveCocoa的MVVM探索</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
 <aside class="sidebar">
   
     <section>
@@ -1373,6 +908,7 @@ NSNotificationCenter、NSObject、NSOrderedSet、NSSet、NSString、NSURLConnect
 
   
 </aside>
+
 
     </div>
   </div>
