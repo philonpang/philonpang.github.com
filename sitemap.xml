@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>http://ios.devphilon.com/blog/2015/11/20/ali-waxshi-yong-he-yuan-ma-jie-xi-xi-lie-waxde-ji-cheng-he-diao-shi-huan-jing-da-jian/</loc>
+    <lastmod>2015-11-20T11:10:11+08:00</lastmod>
+  </url>
+  <url>
     <loc>http://ios.devphilon.com/blog/2015/06/26/jspatchxue-xi-yi-ji-iosping-tai-hotfixzai-xian-bu-ding-guan-li-fang-an-shi-xian/</loc>
     <lastmod>2015-06-26T14:59:32+08:00</lastmod>
   </url>
@@ -21,5 +25,14 @@
   </url>
   <url>
     <loc>http://ios.devphilon.com/</loc>
+  </url>
+  <url>
+    <loc>http://ios.devphilon.com/blog/categories/ali-wax/</loc>
+  </url>
+  <url>
+    <loc>http://ios.devphilon.com/page2/</loc>
+  </url>
+  <url>
+    <loc>http://ios.devphilon.com/page3/</loc>
   </url>
 </urlset>
