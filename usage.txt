@@ -1,4 +1,6 @@
-新文章是 rake new_post['article name']
+
+rvm use 2.2.3 需要使用 ruby 2.2.3: 
+rake new_post['article name'] 新文章是 
 
 rake generate 生成静态文件 
 rake watch 检测文件变化，实时生成新内容
