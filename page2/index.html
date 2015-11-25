@@ -9,7 +9,7 @@
   <meta name="author" content="philon">
 
   
-  <meta name="description" content="前言 一直觉得对于具体功能模块的设计模式来说，没有什么值得研究和讨论的。觉得iOS提供的MVC模式已经能够很好的利用到产品的开发中去，对于大多数开发人员来说，最熟悉最得心应手的设计模式莫过于此。 但是随着业务需求的膨涨、页面交互的体验优化、业务模式的逐渐丰富，我们一直习以为常的MVC模式中， &hellip;">
+  <meta name="description" content="关于HotfixPatch 在IOS开发领域，由于Apple严格的审核标准和低效率，IOS应用的发版速度极慢，稍微大型的app发版基本上都在一个月以上，所以代码热更新（HotfixPatch）对于IOS应用来说就显得尤其重要。 现在业内基本上都在使用WaxPatch方案， &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -66,6 +66,739 @@
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2015/06/26/jspatchxue-xi-yi-ji-iosping-tai-hotfixzai-xian-bu-ding-guan-li-fang-an-shi-xian/">IOS平台Hotfix框架:JSPatch学习笔记及和WaxPatch的集成</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2015-06-26T14:59:32+08:00" pubdate data-updated="true"></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><h2>关于HotfixPatch</h2>
+
+<p>在IOS开发领域，由于Apple严格的审核标准和低效率，IOS应用的发版速度极慢，稍微大型的app发版基本上都在一个月以上，所以代码热更新（HotfixPatch）对于IOS应用来说就显得尤其重要。</p>
+
+<p>现在业内基本上都在使用WaxPatch方案，由于Wax框架已经停止维护四五年了，所以waxPatch在使用过程中还是存在不少坑(比如参数转化过程中的问题，如果继承类没有实例化修改继承类的方法无效, wax_gc中对oc中instance的持有延迟释放&hellip;)。另外苹果对于Wax使用的态度也处于模糊状态，这也是一个潜在的使用风险。</p>
+
+<p>随着FaceBook开源React Native框架，利用JavaScriptCore.framework直接建立JavaScript（JS）和Objective-C(OC)之间的bridge成为可能，JSPatch也在这个时候应运而生。最开始是从唐巧的微信公众号推送上了解到，开始还以为是在React Native的基础上进行的封装，不过最近仔细研究了源代码，跟React Native半毛钱关系都没有，这里先对JSPatch的作者（不是唐巧，是Bang，<a href="http://blog.cnbang.net/">博客地址</a>）赞一个。</p>
+
+<p>深入了解JSPatch之后，第一感觉是这个方案小巧，易懂，维护成本低，直接通过OC代码去调用runtime的API，作为一个IOS开发者，很快就能看明白，不用花大精力去了解学习lua。另外在建立JS和OC的Bridge时，作者很巧妙的利用JS和OC两种语言的消息转发机制做了很优雅的实现，稍显不足的是JSPatch只能支持ios7及以上。</p>
+
+<p>由于现在公司的部分应用还在支持ios6，完全取代Wax也不现实，但是一些新上应用已经直接开始支持ios7。个人觉得ios6和ios7的界面风格差别较大，相信应用最低支持版本会很快升级到ios7. 还考虑到JSPatch的成熟度不够，所以决定把JSPatch和WaxPatch结合在一起，相互补充进行使用。下面给大家说一些学习使用体会。</p>
+
+<h2>JSPatch和WaxPatch对比</h2>
+
+<p>关于JSPatch对比WaxPatch的优势，下面摘抄一下JSPatch作者的话：</p>
+
+<ul>
+<li><a href="http://blog.cnbang.net/works/2767/">来源: JSPatch – 动态更新iOS APP</a></li>
+</ul>
+
+
+<h4>方案对比</h4>
+
+<p>目前已经有一些方案可以实现动态打补丁，例如WaxPatch，可以用Lua调用OC方法，相对于WaxPatch，JSPatch的优势：</p>
+
+<ul>
+<li><p>1.<strong>JS语言:</strong> JS比Lua在应用开发领域有更广泛的应用，目前前端开发和终端开发有融合的趋势，作为扩展的脚本语言，JS是不二之选。</p></li>
+<li><p>2.<strong>符合Apple规则:</strong> JSPatch更符合Apple的规则。<a href="https://developer.apple.com/programs/terms/ios/standard/ios_program_standard_agreement_20140909.pdf">iOS Developer Program License Agreement</a>里3.3.2提到不可动态下发可执行代码，但通过苹果JavaScriptCore.framework或WebKit执行的代码除外，JS正是通过JavaScriptCore.framework执行的。</p></li>
+<li><p>3.<strong>小巧:</strong> 使用系统内置的JavaScriptCore.framework，无需内嵌脚本引擎，体积小巧。</p></li>
+<li><p>4.<strong>支持block:</strong> wax在几年前就停止了开发和维护，不支持Objective-C里block跟Lua程序的互传，虽然一些第三方已经实现block，但使用时参数上也有比较多的限制。</p></li>
+</ul>
+
+
+<p>JSPatch的劣势：</p>
+
+<ul>
+<li>相对于WaxPatch，JSPatch劣势在于不支持iOS6，因为需要引入JavaScriptCore.framework。另外目前内存的使用上会高于wax，持续改进中。</li>
+</ul>
+
+
+<h2>JSPatch的实现原理理解</h2>
+
+<p>JSPatch的实现原理作者的博文已经很详细的介绍了，我这里就不多说了，贴一下学习之处：</p>
+
+<ul>
+<li>JSPatch实现原理详解 <a href="http://blog.cnbang.net/tech/2808/">http://blog.cnbang.net/tech/2808/</a></li>
+<li>JSPatch Git源码和使用说明 <a href="https://github.com/bang590/JSPatch">https://github.com/bang590/JSPatch</a></li>
+</ul>
+
+
+<p>看实现原理详解的时候对照着源码看，比较好理解，我在这里说一下我对JSPatch的学习和理解：</p>
+
+<h4>（1）OC的动态语言特性</h4>
+
+<p>不管是WaxPatch框架还是JSPatch的方案，其根本原理都是利用OC的动态语言特性去动态修改类的方法实现。
+OC的动态语言特性是在runtime system(全部用C实现，Apple维护了一份开源代码)上实现的，面向对象的Class和instance机制都是基于消息机制。我们平时认为的[object method]，正确的理解应该是[receiver sendMsg], 所有的消息发送会在编译阶段编译为runtime c函数的调用：_obj_sendMsg(id, SEL).</p>
+
+<p>详细介绍参考博文：</p>
+
+<ul>
+<li><a href="http://justsee.iteye.com/blog/2163777">Objective-C Runtime详细介绍</a></li>
+<li><a href="http://www.opensource.apple.com/source/objc4/">Objective-C Runtime源码_Apple</a></li>
+</ul>
+
+
+<p>runtime提供了一些运行时的API</p>
+
+<ul>
+<li>反射类和选择器</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Class class = NSClassFromString("UIViewController");
+</span><span class='line'>SEL selector = NSSelectorFromString("viewDidLoad");</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>为某个类新增或者替换方法选择器（SEL）的实现（IMP）</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>BOOL class_addMethod(Class cls, SEL name, IMP imp, const char *types);
+</span><span class='line'>IMP class_replaceMethod(Class cls, SEL name, IMP imp, const char *types);</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>在runtime中动态注册类</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Class superCls = NSClassFromString(superClassName);
+</span><span class='line'>cls = objc_allocateClassPair(superCls, className.UTF8String, 0);
+</span><span class='line'>objc_registerClassPair(cls);</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>（2）JS如何调用OC</h4>
+
+<p>在JS运行环境中，需要解决两个问题，一个是OC类对象（objc_class）的获取，另一个就是使用对象提供的接口方法。</p>
+
+<p>对于第一个问题，JSPatch在实现中是通过Require调用在JS环境下创建一个class同名对象（js形式），当向OC发送alloc接收消息之后，会将OC环境中创建的对象地址保存到这个这个js同名对象中，js本身并不完成任何对象的初始化。关于JS持有OC对象的引用，其回收的解释在JSPatch作者的博文中有介绍，没有具体测试。详见JSPatch.js代码：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>//请求OC类对象
+</span><span class='line'>UIView = require("UIView");
+</span><span class='line'>
+</span><span class='line'>//缓存JS class同名对象
+</span><span class='line'>var _require = function(clsName) {
+</span><span class='line'>    if (!global[clsName]) {
+</span><span class='line'>      global[clsName] = {
+</span><span class='line'>        __isCls: 1,
+</span><span class='line'>        __clsName: clsName
+</span><span class='line'>      }
+</span><span class='line'>    } 
+</span><span class='line'>    return global[clsName]
+</span><span class='line'>      }
+</span><span class='line'>
+</span><span class='line'>//调用class方法，返回OC实例化对象进行封装
+</span><span class='line'>var ret = instance ? _OC_callI(instance, selectorName, args, isSuper):
+</span><span class='line'>                     _OC_callC(clsName, selectorName, args)
+</span><span class='line'>                     
+</span><span class='line'>//OC创建后返回对象
+</span><span class='line'>return@{@"__clsName": NSStringFromClass([obj class]), @"__obj": obj};
+</span><span class='line'>    
+</span><span class='line'>
+</span><span class='line'>//JS中解析OC对象
+</span><span class='line'>return _formatOCToJS(ret)
+</span><span class='line'>
+</span><span class='line'>//_formatOCToJS
+</span><span class='line'>if (obj instanceof Object) {
+</span><span class='line'>    var ret = {}
+</span><span class='line'>    for (var key in obj) {
+</span><span class='line'>      ret[key] = _formatOCToJS(obj[key])
+</span><span class='line'>    }
+</span><span class='line'>    return ret
+</span><span class='line'> }
+</span><span class='line'>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>对于第二个问题，JSPatch在JS环境中通过中心转发方式，所有OC方法的调用均是通过新增Object（js）原型方法<em>c(methodName)完成调用，在通过JavaScriptCore执行JS脚本之前，先将所有的方法调用字符替换
+</em>c(&lsquo;method&rsquo;)的方式； 在_c函数中通过JSContex建立的桥接函数传入参数和返回参数即完成了调用；</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>//字符替换
+</span><span class='line'>static NSString *_regexStr = @"\\.\\s*(\\w+)\\s*\\(";
+</span><span class='line'>static NSString *_replaceStr = @".__c(\"$1\")(";
+</span><span class='line'>
+</span><span class='line'>NSString *formatedScript = [NSString stringWithFormat:@"try{@}catch(e){_OC_catch(e.message, e.stack)}", [_regex stringByReplacingMatchesInString:script options:0 range:NSMakeRange(0, script.length) withTemplate:_replaceStr]];
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>//__c()向OC转发调用参数
+</span><span class='line'>Object.prototype.__c = function(methodName) {
+</span><span class='line'>    
+</span><span class='line'>    ...
+</span><span class='line'>    
+</span><span class='line'>    return function(){
+</span><span class='line'>      var args = Array.prototype.slice.call(arguments)
+</span><span class='line'>      return _methodFunc(self.__obj, self.__clsName, methodName, args, self.__isSuper)
+</span><span class='line'>    }
+</span><span class='line'> }
+</span><span class='line'>  
+</span><span class='line'>//_methodFunc调用桥接函数
+</span><span class='line'>var _methodFunc = function(instance, clsName, methodName, args, isSuper) {
+</span><span class='line'>  
+</span><span class='line'>  ...
+</span><span class='line'>  
+</span><span class='line'>    var ret = instance ? _OC_callI(instance, selectorName, args, isSuper):
+</span><span class='line'>                         _OC_callC(clsName, selectorName, args)
+</span><span class='line'>
+</span><span class='line'>    return _formatOCToJS(ret)
+</span><span class='line'> }
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>//OC中的桥接函数，JS和OC的桥接函数都是通过这样定义
+</span><span class='line'>context[@"_OC_callI"] = ^id(JSValue *obj, NSString *selectorName, JSValue *arguments, BOOL isSuper) {
+</span><span class='line'>    return callSelector(nil, selectorName, arguments, obj, isSuper);
+</span><span class='line'>};
+</span><span class='line'>
+</span><span class='line'>context[@"_OC_callC"] = ^id(NSString *className, NSString *selectorName, JSValue *arguments) {
+</span><span class='line'>    return callSelector(className, selectorName, arguments, nil, NO);
+</span><span class='line'>};
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>（3）JS如何替换OC方法</h4>
+
+<p>JSPatch的主要作用还是通过脚本修复一些线上bug，希望能够达到替换OC方法的目标。JSPatch的实现巧妙之处在于：利用了OC的<a href="http://bugly.qq.com/blog/?p=64">消息转发机制</a>。</p>
+
+<ul>
+<li>1:替换原有selector的IMP实现为一个空的IMP实现，这样当objc_class接受到消息之后，就会进行消息转发, 另外需要将selector的初始实现进行保存；</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>//selector指向空实现
+</span><span class='line'>IMP msgForwardIMP = getEmptyMsgForwardIMP(typeDescription, methodSignature);
+</span><span class='line'>class_replaceMethod(cls, selector, msgForwardIMP, typeDescription);
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>//保存原有实现，这里进行了修改，增加了恢复现场的支持
+</span><span class='line'>NSString *originalSelectorName = [NSString stringWithFormat:@"ORIG@", selectorName];
+</span><span class='line'>SEL originalSelector = NSSelectorFromString(originalSelectorName);
+</span><span class='line'>if(class_respondsToSelector(cls, selector)) {
+</span><span class='line'>    if(!class_respondsToSelector(cls, originalSelector)){
+</span><span class='line'>        class_addMethod(cls, originalSelector, originalImp, typeDescription);
+</span><span class='line'>    } else {
+</span><span class='line'>        class_replaceMethod(cls, originalSelector, originalImp, typeDescription);
+</span><span class='line'>    }
+</span><span class='line'>}
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>2:将替换的JS方法构造一个JPSelector及其IMP实现（根据返回参数构造），添加到当前class中，并通过cls＋selecotr全局缓存JS方法（全局缓存并没有多大用途，但是对于后面恢复现场比较有用）;</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>if (!_JSOverideMethods[clsName][JPSelectorName]) {
+</span><span class='line'>    _initJPOverideMethods(clsName);
+</span><span class='line'>    _JSOverideMethods[clsName][JPSelectorName] = function;
+</span><span class='line'>    const char *returnType = [methodSignature methodReturnType];
+</span><span class='line'>    IMP JPImplementation = NULL;
+</span><span class='line'>    
+</span><span class='line'>    //根据返回类型构造
+</span><span class='line'>    switch (returnType[0]){
+</span><span class='line'>     ...
+</span><span class='line'>    }
+</span><span class='line'> 
+</span><span class='line'>  if(!class_respondsToSelector(cls, JPSelector)){
+</span><span class='line'>        class_addMethod(cls, JPSelector, JPImplementation, typeDescription);
+</span><span class='line'>    } else {
+</span><span class='line'>        class_replaceMethod(cls, JPSelector, JPImplementation,typeDescription);
+</span><span class='line'>    }
+</span><span class='line'>}
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>3:然后改写每个替换方法类的forwadInvocation的实现进行拦截，如果拦截到的Invocation的selctor转化成JPSelector能够响应，说明是一个替换方法，则从Invocation中取参数后调用JPSelector的IMP；</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>static void JPForwardInvocation(id slf, SEL selector, NSInvocation *invocation)
+</span><span class='line'>{
+</span><span class='line'>    NSMethodSignature *methodSignature = [invocation methodSignature];
+</span><span class='line'>    NSInteger numberOfArguments = [methodSignature numberOfArguments];
+</span><span class='line'>    
+</span><span class='line'>    NSString *selectorName = NSStringFromSelector(invocation.selector);
+</span><span class='line'>    NSString *JPSelectorName = [NSString stringWithFormat:@"_JP@", selectorName];
+</span><span class='line'>    SEL JPSelector = NSSelectorFromString(JPSelectorName);
+</span><span class='line'>    
+</span><span class='line'>    if (!class_respondsToSelector(object_getClass(slf), JPSelector)) {
+</span><span class='line'>      ...
+</span><span class='line'>    }
+</span><span class='line'>    
+</span><span class='line'>    NSMutableArray *argList = [[NSMutableArray alloc] init];
+</span><span class='line'>    [argList addObject:slf];
+</span><span class='line'>
+</span><span class='line'>    for (NSUInteger i = 2; i &lt; numberOfArguments; i++) {
+</span><span class='line'>      ...
+</span><span class='line'>    }
+</span><span class='line'>    
+</span><span class='line'>    //获取参数之后invoke JPSector调用JSFunction的实现
+</span><span class='line'>    @synchronized(_context) {
+</span><span class='line'>        _TMPInvocationArguments = formatOCToJSList(argList);
+</span><span class='line'>
+</span><span class='line'>        [invocation setSelector:JPSelector];
+</span><span class='line'>        [invocation invoke];
+</span><span class='line'>        
+</span><span class='line'>        _TMPInvocationArguments = nil;
+</span><span class='line'>    }
+</span><span class='line'>}
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Patch现场复原的补充</h2>
+
+<p>Patch现场恢复的功能主要用于连续更新脚本的应用场景。由于IOS的App应用按Home键或者被电话中断的时候，应用实际上是首先进入到后台运行阶段（applicationWillResignActive），当我们下次再次使用App的时候，如果后台应用没有被终止（applicationWillTerminate），那么App不会走appliation:didFinishLaunchingWithOptions方法，而是会走（applicationWillEnterForeground）。 对于这种场景如果我们连续更新线上脚本，那么第二次脚本更新则无法保留最开始的方法实现，另外恢复现场功能也有助于我们撤销线上脚本能够恢复应用的本身代码功能。</p>
+
+<h4>（1）WaxPatch的现场恢复</h4>
+
+<p>在Wax中通过wax_start(&ldquo;init lua file&rdquo;)启动框架并通过脚本替换类方法，通过wax_end()停止使用waxPatch环境。 Wax的官方维护版本中也没有现场恢复功能，替换方法的现场保存也是我们维护团队自行加入的，其实就是在替换方法或者新增方法的时候对原始现场（替换类／新增类＋替换方法/新增方法）进行cache，当需要恢复patch现场的时候通过cache进行复原。 下面简单说一下wax中的现场保存和恢复功能：</p>
+
+<p>首先是在方法替换的时候，记录替换类＋替换方法</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>static BOOL overrideMethod(lua_State *L, wax_instance_userdata *instanceUserdata){
+</span><span class='line'>  ...
+</span><span class='line'>  
+</span><span class='line'>  if(instImp) {
+</span><span class='line'>        if(!class_respondsToSelector(klass, newSelector)) {
+</span><span class='line'>            class_addMethod(klass, newSelector, prevImp, typeDescription);
+</span><span class='line'>        } else {
+</span><span class='line'>            class_replaceMethod(klass, newSelector, prevImp, typeDescription);
+</span><span class='line'>        }
+</span><span class='line'>        success = YES;
+</span><span class='line'>        
+</span><span class='line'>        NSDictionary *dict = @{@"class" : klass,
+</span><span class='line'>                               @"sel" : selector ? NSStringFromSelector(selector) : [NSNull null],
+</span><span class='line'>                               @"sel_objc" : newSelector ? NSStringFromSelector(newSelector) : [NSNull null], // objcXXXX
+</span><span class='line'>                               @"typeDesc" : typeDescription ? [NSString stringWithUTF8String:typeDescription] : [NSNull null],
+</span><span class='line'>                               @"identifier" : identifier
+</span><span class='line'>                               };
+</span><span class='line'>        addMethodReplaceDict(dict);
+</span><span class='line'>    } 
+</span><span class='line'>  
+</span><span class='line'>  ...
+</span><span class='line'>}
+</span><span class='line'>  </span></code></pre></td></tr></table></div></figure>
+
+
+<p>当Wax_end调用的时候恢复现场：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>//调用wax_end
+</span><span class='line'>void wax_end() {
+</span><span class='line'>    wax_clear();
+</span><span class='line'>    [wax_gc stop];
+</span><span class='line'>    lua_close(wax_currentLuaState());
+</span><span class='line'>    currentL = 0;
+</span><span class='line'>}
+</span><span class='line'>
+</span><span class='line'>//wax_clear()恢复现场
+</span><span class='line'>
+</span><span class='line'>/// 重置所有被wax修改的方法和类
+</span><span class='line'>void wax_clear() {
+</span><span class='line'>    // methods rollback
+</span><span class='line'>    for (NSDictionary *dict in replacedMethodArray) {
+</span><span class='line'>        Class class = dict[@"class"];
+</span><span class='line'>        NSString *sel_str = dict[@"sel"];
+</span><span class='line'>        NSString *sel_objc_str = dict[@"sel_objc"];
+</span><span class='line'>        NSString *typeDesc = dict[@"typeDesc"];
+</span><span class='line'>        NSString *identifier = dict[@"identifier"];
+</span><span class='line'>        if (identifier) {
+</span><span class='line'>            [[LDAOPAspect instance] removeAnInterceptorWithIdentifier:identifier];
+</span><span class='line'>        }
+</span><span class='line'>        
+</span><span class='line'>        if (sel_str && ![sel_str isKindOfClass:[NSNull class]]
+</span><span class='line'>            && sel_objc_str && ![sel_objc_str isKindOfClass:[NSNull class]]
+</span><span class='line'>            && typeDesc && ![typeDesc isKindOfClass:[NSNull class]]) {
+</span><span class='line'>            SEL sel = NSSelectorFromString(sel_str);
+</span><span class='line'>            SEL sel_objc = NSSelectorFromString(sel_objc_str); // objcXXXX
+</span><span class='line'>            IMP imp = class_getMethodImplementation(class, sel_objc);
+</span><span class='line'>            class_replaceMethod(class, sel, imp, typeDesc.UTF8String);
+</span><span class='line'>        }
+</span><span class='line'>    }
+</span><span class='line'>    
+</span><span class='line'>    [replacedMethodArray removeAllObjects];
+</span><span class='line'>    [replacedMethodArray release];
+</span><span class='line'>    replacedMethodArray = nil;
+</span><span class='line'>    
+</span><span class='line'>    // class rollback
+</span><span class='line'>    for (NSDictionary *dict in modifiedClassArray) {
+</span><span class='line'>        NSString *className = dict[@"class"];
+</span><span class='line'>        NSInteger version = [dict[@"version"] intValue];
+</span><span class='line'>        Class class = NSClassFromString(className);
+</span><span class='line'>        class_setVersion(class, version);
+</span><span class='line'>    }
+</span><span class='line'>    [modifiedClassArray removeAllObjects];
+</span><span class='line'>    [modifiedClassArray release];
+</span><span class='line'>    modifiedClassArray = nil;
+</span><span class='line'>}
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>（2）JSPatch的现场恢复</h4>
+
+<p>为了跟Wax配合使用，本文在JSPatch添加了一样的调用方式和现场恢复功能；源码地址参考：</p>
+
+<ul>
+<li>增加现场恢复的JSPatchDemo:<a href="https://github.com/philonpang/JSPatch.git">https://github.com/philonpang/JSPatch.git</a></li>
+</ul>
+
+
+<p>说明如下：</p>
+
+<p>（1）在JPEngine.h 中添加了两个启动和结束的调用函数如下：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>void js_start(NSString* initScript);
+</span><span class='line'>void js_end();</span></code></pre></td></tr></table></div></figure>
+
+
+<p>(2) JPEngine.m 中调用函数的实现以及恢复现场对部分代码的修改：主要是利用了替换方法和新增方法的cache（_JSOverideMethods, 主要是这个）</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>//处理替换方法,selector指回最初的IMP，JPSelector和ORIGSelector都指向未实现IMP
+</span><span class='line'> if([JPSelectorName hasPrefix:@"_JP"]){
+</span><span class='line'>     if (class_getMethodImplementation(cls, @selector(forwardInvocation:)) == (IMP)JPForwardInvocation) {
+</span><span class='line'>         SEL ORIGforwardSelector = @selector(ORIGforwardInvocation:);
+</span><span class='line'>         IMP ORIGforwardImp = class_getMethodImplementation(cls, ORIGforwardSelector);
+</span><span class='line'>         class_replaceMethod(cls, @selector(forwardInvocation:), ORIGforwardImp, "v@:@");
+</span><span class='line'>         class_replaceMethod(cls, ORIGforwardSelector, _objc_msgForward, "v@:@");
+</span><span class='line'>     }
+</span><span class='line'>     
+</span><span class='line'>     
+</span><span class='line'>     NSString *selectorName = [JPSelectorName stringByReplacingOccurrencesOfString:@"_JP" withString:@""];
+</span><span class='line'>     NSString *ORIGSelectorName = [JPSelectorName stringByReplacingOccurrencesOfString:@"_JP" withString:@"ORIG"];
+</span><span class='line'>     
+</span><span class='line'>     SEL JPSelector = NSSelectorFromString(JPSelectorName);
+</span><span class='line'>     SEL selector = NSSelectorFromString(selectorName);
+</span><span class='line'>     SEL ORIGSelector = NSSelectorFromString(ORIGSelectorName);
+</span><span class='line'>     
+</span><span class='line'>     if(class_respondsToSelector(cls, ORIGSelector) &&
+</span><span class='line'>        class_respondsToSelector(cls, selector) &&
+</span><span class='line'>        class_respondsToSelector(cls, JPSelector)){
+</span><span class='line'>         NSMethodSignature *methodSignature = [cls instanceMethodSignatureForSelector:ORIGSelector];
+</span><span class='line'>         Method method = class_getInstanceMethod(cls, ORIGSelector);
+</span><span class='line'>         char *typeDescription = (char *)method_getTypeEncoding(method);
+</span><span class='line'>         IMP forwardEmptyIMP = getEmptyMsgForwardIMP(typeDescription, methodSignature);
+</span><span class='line'>         IMP ORIGSelectorImp = class_getMethodImplementation(cls, ORIGSelector);
+</span><span class='line'>         
+</span><span class='line'>         class_replaceMethod(cls, selector, ORIGSelectorImp, typeDescription);
+</span><span class='line'>         class_replaceMethod(cls, JPSelector, forwardEmptyIMP, typeDescription);
+</span><span class='line'>         class_replaceMethod(cls, ORIGSelector, forwardEmptyIMP, typeDescription);
+</span><span class='line'>     }
+</span><span class='line'> }
+</span><span class='line'> 
+</span><span class='line'> //处理添加的新方法
+</span><span class='line'> else {
+</span><span class='line'>     isClsNew = YES;
+</span><span class='line'>     SEL JPSelector = NSSelectorFromString(JPSelectorName);
+</span><span class='line'>     if(class_respondsToSelector(cls, JPSelector)){
+</span><span class='line'>         NSMethodSignature *methodSignature = [cls instanceMethodSignatureForSelector:JPSelector];
+</span><span class='line'>         Method method = class_getInstanceMethod(cls, JPSelector);
+</span><span class='line'>         char *typeDescription = (char *)method_getTypeEncoding(method);
+</span><span class='line'>         IMP forwardEmptyIMP = getEmptyMsgForwardIMP(typeDescription, methodSignature);
+</span><span class='line'>         
+</span><span class='line'>         class_replaceMethod(cls, JPSelector, forwardEmptyIMP, typeDescription);
+</span><span class='line'>     }
+</span><span class='line'> }</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>HotfixPatch的那些坑</h2>
+
+<p>WaxPatch之前被一些同事抱怨有不少坑，JSPatch在使用过程中也会遇到不少坑，所以虽然这两个框架现在虽然都能够做到新增可执行代码，但是将其应用到开发功能组件还不太可取。</p>
+
+<p>比如说我在第一次使用JSPatch遇到了一个坑：（后面想单写一个博客收集一下我们团队使用Patch遇到的坑～～）</p>
+
+<ul>
+<li><p>在JS脚本改写派生类中未实现的继承类的 optional protocol方法时，tableView reload的时候不会调用JS的补丁方法，但是在tableView中显式调用可以调用替换的selector方法；另外如果在派生类中重写这个protocol方法，则可以调起；</p></li>
+<li><p>&hellip;</p></li>
+</ul>
+
+
+<p>先写这么多了，本来想写一下我们的patch管理方案，觉得没有什么可说了，就不写了～</p>
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -598,818 +1331,6 @@ NSNotificationCenter、NSObject、NSOrderedSet、NSSet、NSString、NSURLConnect
 
     </article>
   
-  
-    <article>
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2015/05/29/jsbridge/">通用JSBridge的设计和实现</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2015-05-29T21:30:27+08:00" pubdate data-updated="true"></time>
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><h3>前言</h3>
-
-<p>对于商务类的app，随着app注册使用人数递增，app的运营者们就会逐渐考虑在应用中开展一些推广活动。大多数活动具备时效性强、运营时间短的特征，一般产品们和运营者们都是通过wap页面快速投放到产品的活动模块。Wap页面可以声文并茂地介绍活动，但活动的最终目标是通过获取特权、跳转进入本地功能模块，最后达成交易。如何建立wap页面和本地Native页面的深度交互，这就需要用到本文介绍的JSBridge。</p>
-
-<p>此外一些平台类的产品，如大家每天都在使用的微信、支付宝、手机qq等，无一例外都在使用集成JSBridge的webContainer完成众多业务组件功能，大大减少了客户端Native开发的工作量，不仅节约了大量人力开发成本，还能避开产品上线更新的版本审核周期限制（特别是IOS平台）。当然这些超级APP有强大的技术力量支撑，通过JSBridge有计划的进行API规范接口，不断向前端Wap开发人员开放，并在版本上向下兼容。但对于我们刚起步运营的中小级app来说暂时还没有必要如此大张旗鼓，相反前面提到的wap活动推广则是我们的主要需求。</p>
-
-<p>为了满足这个需求，本文通过提炼JSBridge的核心部分改造成JSService方式供各个不同的产品零修改方式使用。各个不同的产品只需要按照插件的方式提供Native扩展接口，并在各自封装的webContainer中调用JSService对Wap调用进行拦截处理。</p>
-
-<h3>具体产品应用</h3>
-
-<p>目前该框架同时覆盖了Android和IOS平台，在我司的几个电商类产品中都得到了很好的使用，并趋于稳定。
-本文的Demo工程运行效果如下：</p>
-
-<p><img src="/images/jsapidemo_ios.png">
-<img src="/images/jsapidemo_android.jpg"></p>
-
-<h3>关于JSAPI的接口封装</h3>
-
-<p>JSAPI的封装包括核心JS和对外开放接口JS两个部分。 核心JS部分通过拦截某Q的wap请求页面获取，获取的JS进行编码混淆处理，已经通过调试进行了注释，其主要过程就是对参数和回调进行封装，并构建一个url链接通过创建一个隐藏的iframe进行发送。<a href="">核心JS代码阅读</a></p>
-
-<p>对参数和回调进行封装部分的代码如下：</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-<span class='line-number'>41</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>//invoke
-</span><span class='line'>  //mapp.invoke("device", "getDeviceInfo", e);
-</span><span class='line'>  //@param e 类 必须
-</span><span class='line'>  //@param n 类方法 必须
-</span><span class='line'>  //@param i 同步回调的js方法
-</span><span class='line'>  //@param s 
-</span><span class='line'>    function k(e, n, i, s) {
-</span><span class='line'>        if (!e || !n) return null;
-</span><span class='line'>        var o, u;
-</span><span class='line'>        i = r.call(arguments, 2), //相当于调用Array.prototype.slice(arguments) == arguments.slice(2),获取argument数组2以后的元素
-</span><span class='line'>        
-</span><span class='line'>      //令s等于回调函数
-</span><span class='line'>      s = i.length && i[i.length - 1],
-</span><span class='line'>        s && typeof s == "function" ? i.pop() : typeof s == "undefined" ? i.pop() : s = null,
-</span><span class='line'>        
-</span><span class='line'>      //u为当前存储回调函数的index；
-</span><span class='line'>      u = b(s);
-</span><span class='line'>        
-</span><span class='line'>      //如果当前版本支持Bridge
-</span><span class='line'>      if (C(e, n)) {
-</span><span class='line'>          //将传进来的所有参数生成一个url字符串；
-</span><span class='line'>            o = "ldjsbridge:" + "/" + "/" + encodeURIComponent(e) + "/" + encodeURIComponent(n),
-</span><span class='line'>            i.forEach(function(e, t) {
-</span><span class='line'>                typeof e == "object" && (e = JSON.stringify(e)),
-</span><span class='line'>                t === 0 ? o += "?p=": o += "&p" + t + "=",
-</span><span class='line'>                o += encodeURIComponent(String(e))
-</span><span class='line'>            }),
-</span><span class='line'>            (o += "#" + u); //带上存储回调的数组index;
-</span><span class='line'>          
-</span><span class='line'>           
-</span><span class='line'>          //执行生成的url, 有些函数是同步执行完毕，直接调用回调函数；而有些函数的调用要通过异步调用执行，需要通过
-</span><span class='line'>          //全局调用去完成；
-</span><span class='line'>              var f = N(o);
-</span><span class='line'>            if (t.iOS) {
-</span><span class='line'>                f = f ? f.result: null;
-</span><span class='line'>                if (!s) return f; //如果无回调函数，直接返回结果；
-</span><span class='line'>            }
-</span><span class='line'>        }else {
-</span><span class='line'>          console.log("mappapi: the version don't support mapp." + e + "." + n);
-</span><span class='line'>      }
-</span><span class='line'>    }
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>创建iframe发送JSBridge调用请求：</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>//创建一个iframe，执行src，供拦截
-</span><span class='line'>function N(n, r) {
-</span><span class='line'>  console.log("logOpenURL:&gt;&gt;" + n);
-</span><span class='line'>    var i = document.createElement("iframe");
-</span><span class='line'>    i.style.cssText = "display:none;width:0px;height:0px;";
-</span><span class='line'>    var s = function() {
-</span><span class='line'>      //通过全局执行函数执行回调函数；监听iframe是否加载完毕
-</span><span class='line'>        E(r, {
-</span><span class='line'>            r: -201,
-</span><span class='line'>            result: "error"
-</span><span class='line'>        })
-</span><span class='line'>    };
-</span><span class='line'>    
-</span><span class='line'>  //ios平台，令iframe的src为url，onload函数为全局回调函数
-</span><span class='line'>  //并将iframe插入到body或者html的子节点中；
-</span><span class='line'>  t.iOS && (i.onload = s, i.src = n);
-</span><span class='line'>    var o = document.body || document.documentElement; 
-</span><span class='line'>    o.appendChild(i),
-</span><span class='line'>    t.android && (i.onload = s, i.src = n);
-</span><span class='line'>  
-</span><span class='line'>  //
-</span><span class='line'>    var u = t.__RETURN_VALUE;
-</span><span class='line'>  //当iframe执行完成之后，最后执行settimeout 0语句
-</span><span class='line'>    return t.__RETURN_VALUE = e,
-</span><span class='line'>    setTimeout(function() {
-</span><span class='line'>        i.parentNode.removeChild(i)
-</span><span class='line'>    },
-</span><span class='line'>    0),
-</span><span class='line'>    u
-</span><span class='line'>}</span></code></pre></td></tr></table></div></figure>
-
-
-<p>对外开放接口的封装：（使用者只需要对该部分进行接口扩展即可）</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>mapp.build("mapp.device.getDeviceInfo", {
-</span><span class='line'>    iOS: function(e) {
-</span><span class='line'>      return mapp.invoke("device", "getDeviceInfo", e);
-</span><span class='line'>    },
-</span><span class='line'>    android: function(e) {
-</span><span class='line'>      var t = e;
-</span><span class='line'>      e = function(e) {
-</span><span class='line'>          try {
-</span><span class='line'>              e = JSON.parse(e)
-</span><span class='line'>          } catch(n) {}
-</span><span class='line'>          t && t(e)
-</span><span class='line'>      },
-</span><span class='line'>      mapp.invoke("device", "getDeviceInfo", e)
-</span><span class='line'>    },
-</span><span class='line'>    support: {
-</span><span class='line'>        iOS: "1.0",
-</span><span class='line'>        android: "1.0"
-</span><span class='line'>    }
-</span><span class='line'>}),
-</span><span class='line'>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h4>核心JS代码调用说明</h4>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-<span class='line-number'>41</span>
-<span class='line-number'>42</span>
-<span class='line-number'>43</span>
-<span class='line-number'>44</span>
-<span class='line-number'>45</span>
-<span class='line-number'>46</span>
-<span class='line-number'>47</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>
-</span><span class='line'>mapp.version: mappAPI自身版本号
-</span><span class='line'>
-</span><span class='line'>mapp.iOS: 如果在ios app中，值为true
-</span><span class='line'>
-</span><span class='line'>mapp.android: 如果在android app中，值为true
-</span><span class='line'>
-</span><span class='line'>mapp.support: 检查当前app环境是否支持该接口，支持返回true
-</span><span class='line'>
-</span><span class='line'>  mapp.support("mqq.device.getClientInfo")
-</span><span class='line'>
-</span><span class='line'>mapp.callback: 用于生成回调名字，跟着invoke参数传给客户端，供客户端回调
-</span><span class='line'>
-</span><span class='line'>  var callbackName = mapp.callback(function(type, index){     console.log("type: " + type + ", index: " + index);    });
-</span><span class='line'>
-</span><span class='line'>mapp.invoke 方法:
-</span><span class='line'>
-</span><span class='line'>mapp核心方法，用于调用客户端接口。
-</span><span class='line'>
-</span><span class='line'>      @param {String} namespace 命名空间
-</span><span class='line'>      @param {String} method 接口名字
-</span><span class='line'>      @param {Object/String} params 可选，API调用的参数
-</span><span class='line'>      @param {Function} callback 可选，API调用的回调
-</span><span class='line'>
-</span><span class='line'>* 调用普通的无参数接口：
-</span><span class='line'>
-</span><span class='line'>      mapp.invoke("ns", "method");
-</span><span class='line'>      
-</span><span class='line'>* 调用有异步回调函数的接口：
-</span><span class='line'>
-</span><span class='line'>      mapp.invoke("ns", "method", function(data){
-</span><span class='line'>          console.log(data);
-</span><span class='line'>      });
-</span><span class='line'>      
-</span><span class='line'>      或
-</span><span class='line'>      
-</span><span class='line'>      mapp.invoke("ns", "method", {
-</span><span class='line'>          "params" : params   //参数通过json封装
-</span><span class='line'>          "callback" : mapp.callback(handler), //生成回调名字
-</span><span class='line'>      });
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'>* 如果有多个参数调用：
-</span><span class='line'>
-</span><span class='line'>      mapp.invoke("ns", "method", param1, param2 /*,...*/,callback);
-</span><span class='line'>      
-</span><span class='line'>      </span></code></pre></td></tr></table></div></figure>
-
-
-<h3>JSService的具体实现－插件运行机制</h3>
-
-<p>JSService部分是基于Phonegap的Cordova引擎的基础上简化而来，其基本原理参照Cordova的引擎原理如图所示：</p>
-
-<p><img src="/images/JSBridgeIOS_1.png"></p>
-
-<p>一般app中都有自己定制的Webcontainer，为了更好的跟已有项目相融合，在Cordova的基础上我们进行了简化，通过JSAPIService服务的方式进行插件扩展开发如图所示：</p>
-
-<p><img src="/images/JSBridgeIOS_2.png"></p>
-
-<p>本JSBridge是基于Phonegap的Cordova引擎的基础上简化而来, Android平台Webview和JS的交互方式共有三种:</p>
-
-<ol>
-<li>ExposedJsApi：js直接调用java对象的方法；（同步）</li>
-<li>重载chromeClient的prompt 截获方案；(异步)</li>
-<li>url截获+webview.loadUrl回调的方案；（异步）</li>
-</ol>
-
-
-<p>为了和IOS保持一致的JSAPI，只能选用第三套方案；</p>
-
-<p><a href="">具体实现参考源码</a></p>
-
-<h3>基于JSService的插件开发、配置和使用</h3>
-
-<h4>IOS平台</h4>
-
-<p>在Native部分，定义一个模块插件对应于创建一个插件类, 模块中的每个插件接口对应插件类中某个方法。
-集成LDJSBridge_IOS框架之后，只需要继承框架中的插件基类LDJSPlugin，如下所示：</p>
-
-<ul>
-<li>插件接口定义</li>
-</ul>
-
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>#import "LDJSPlugin.h"
-</span><span class='line'>@interface LDPDevice : LDJSPlugin
-</span><span class='line'>{}
-</span><span class='line'>
-</span><span class='line'>//@func 获取设备信息
-</span><span class='line'>- (void)getDeviceInfo:(LDJSInvokedUrlCommand*)command;
-</span><span class='line'>
-</span><span class='line'>@end
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p></p>
-
-<ul>
-<li>自定义插件接口实现</li>
-</ul>
-
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>@implementation LDPDevice
-</span><span class='line'>
-</span><span class='line'>/**
-</span><span class='line'> *@func 获取设备信息
-</span><span class='line'> */
-</span><span class='line'>- (void)getDeviceInfo:(LDJSInvokedUrlCommand*)command{
-</span><span class='line'>    //读取设备信息
-</span><span class='line'>    NSMutableDictionary* deviceProperties = [NSMutableDictionary dictionaryWithCapacity:4];
-</span><span class='line'>    
-</span><span class='line'>    UIDevice* device = [UIDevice currentDevice];
-</span><span class='line'>    [deviceProperties setObject:[device systemName] forKey:@"systemName"];
-</span><span class='line'>    [deviceProperties setObject:[device systemVersion] forKey:@"systemVersion"];
-</span><span class='line'>    [deviceProperties setObject:[device model] forKey:@"model"];
-</span><span class='line'>    [deviceProperties setObject:[device modelVersion] forKey:@"modelVersion"];
-</span><span class='line'>    [deviceProperties setObject:[self uniqueAppInstanceIdentifier] forKey:@"identifier"];
-</span><span class='line'>    
-</span><span class='line'>    LDJSPluginResult* pluginResult = [LDJSPluginResult resultWithStatus:LDJSCommandStatus_OK messageAsDictionary:[NSDictionary dictionaryWithDictionary:deviceProperties]];
-</span><span class='line'>    
-</span><span class='line'>    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-</span><span class='line'>}
-</span><span class='line'>
-</span><span class='line'>@end</span></code></pre></td></tr></table></div></figure>
-
-
-<ul>
-<li>在plugin.json文件中对plugin插件的统一配置</li>
-</ul>
-
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>{
-</span><span class='line'>    "update": "",
-</span><span class='line'>    "module": "mapp",
-</span><span class='line'>    "plugins": [
-</span><span class='line'>        {
-</span><span class='line'>            "pluginname": "device",
-</span><span class='line'>            "pluginclass": "LDPDevice",
-</span><span class='line'>            "exports": [
-</span><span class='line'>                {
-</span><span class='line'>                    "showmethod": "getDeviceInfo",
-</span><span class='line'>                    "realmethod": "getDeviceInfo"
-</span><span class='line'>                }
-</span><span class='line'>            ]
-</span><span class='line'>        }
-</span><span class='line'>  ]
-</span><span class='line'>}</span></code></pre></td></tr></table></div></figure>
-
-
-<ul>
-<li>在webContainer中对JSService初始化, 当初始化完成之后，向前端页面发送一个ReadyEvent，前端即可开始调用JSAPI接口；</li>
-</ul>
-
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>//注册插件Service
-</span><span class='line'>    if(_bridgeService == nil){
-</span><span class='line'>        _bridgeService = [[LDJSService alloc] initBridgeServiceWithConfig:@"PluginConfig.json"];
-</span><span class='line'>    }
-</span><span class='line'>    [_bridgeService connect:_webview Controller:self];
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'>/**
-</span><span class='line'> Called when the webview finishes loading.  This stops the activity view.
-</span><span class='line'> */
-</span><span class='line'>- (void)webViewDidFinishLoad:(UIWebView*)theWebView{
-</span><span class='line'>    NSLog(@"Finished load of: %@", theWebView.request.URL);
-</span><span class='line'>    //当webview finish load之后，发event事件通知前端JSBridgeService已经就绪
-</span><span class='line'>    //监听事件由各个产品自行决定
-</span><span class='line'>    [_bridgeService readyWithEvent:@"LDJSBridgeServiceReady"];
-</span><span class='line'>}
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h4>Android平台</h4>
-
-<ul>
-<li>插件接口定义</li>
-</ul>
-
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>public class LDPDevice extends LDJSPlugin {
-</span><span class='line'>          public static final String TAG = "Device";
-</span><span class='line'>
-</span><span class='line'>  /**
-</span><span class='line'>           * Constructor.
-</span><span class='line'>           */
-</span><span class='line'>          public LDPDevice() {
-</span><span class='line'>          }
-</span><span class='line'>      }
-</span><span class='line'>      </span></code></pre></td></tr></table></div></figure>
-
-
-<ul>
-<li>LDJSPlugin 属性方法说明</li>
-</ul>
-
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>/**
-</span><span class='line'>* Plugins must extend this class and override one of the execute methods.
-</span><span class='line'>*/
-</span><span class='line'>public class LDJSPlugin {
-</span><span class='line'>          public String id;
-</span><span class='line'>          
-</span><span class='line'>          //在插件初始化的时候，会初始化当前插件所属的webview和controller
-</span><span class='line'>  //供插件方法接口 返回处理结果
-</span><span class='line'>    public WebView webView; 
-</span><span class='line'>  public LDJSActivityInterface activityInterface;
-</span><span class='line'>  
-</span><span class='line'>  //所有自定义插件需要重载此方法
-</span><span class='line'>  public boolean execute(String action, LDJSParams args, LDJSCallbackContext callbackContext) throws JSONException {
-</span><span class='line'>          return false;
-</span><span class='line'>          }
-</span><span class='line'>          
-</span><span class='line'>      }   
-</span><span class='line'>      </span></code></pre></td></tr></table></div></figure>
-
-
-<ul>
-<li>自定义插件接口实现</li>
-</ul>
-
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>@Override
-</span><span class='line'>  public boolean execute(String action, LDJSParams args, LDJSCallbackContext callbackContext) throws JSONException {
-</span><span class='line'>      if (action.equals("getDeviceInfo")) {
-</span><span class='line'>          JSONObject r = new JSONObject();
-</span><span class='line'>          r.put("uuid", LDPDevice.uuid);
-</span><span class='line'>          r.put("version", this.getOSVersion());
-</span><span class='line'>          r.put("platform", this.getPlatform());
-</span><span class='line'>          r.put("model", this.getModel());
-</span><span class='line'>          callbackContext.success(r);
-</span><span class='line'>      }
-</span><span class='line'>      else {
-</span><span class='line'>          return false;
-</span><span class='line'>      }
-</span><span class='line'>      return true;
-</span><span class='line'>  }
-</span></code></pre></td></tr></table></div></figure>
-
-
-<ul>
-<li>在封装的webContainer中注册服务并调用：</li>
-</ul>
-
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-<span class='line-number'>41</span>
-<span class='line-number'>42</span>
-<span class='line-number'>43</span>
-<span class='line-number'>44</span>
-<span class='line-number'>45</span>
-<span class='line-number'>46</span>
-<span class='line-number'>47</span>
-<span class='line-number'>48</span>
-<span class='line-number'>49</span>
-<span class='line-number'>50</span>
-<span class='line-number'>51</span>
-<span class='line-number'>52</span>
-<span class='line-number'>53</span>
-<span class='line-number'>54</span>
-<span class='line-number'>55</span>
-<span class='line-number'>56</span>
-<span class='line-number'>57</span>
-<span class='line-number'>58</span>
-<span class='line-number'>59</span>
-<span class='line-number'>60</span>
-<span class='line-number'>61</span>
-<span class='line-number'>62</span>
-<span class='line-number'>63</span>
-<span class='line-number'>64</span>
-<span class='line-number'>65</span>
-<span class='line-number'>66</span>
-<span class='line-number'>67</span>
-<span class='line-number'>68</span>
-<span class='line-number'>69</span>
-<span class='line-number'>70</span>
-<span class='line-number'>71</span>
-<span class='line-number'>72</span>
-<span class='line-number'>73</span>
-<span class='line-number'>74</span>
-<span class='line-number'>75</span>
-<span class='line-number'>76</span>
-<span class='line-number'>77</span>
-<span class='line-number'>78</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>  /**
-</span><span class='line'>     * 初始化Activity,打开网页，注册插件服务
-</span><span class='line'>     */
-</span><span class='line'>    public void initActivity() {
-</span><span class='line'>        //创建webview和显示view
-</span><span class='line'>      createGapView();
-</span><span class='line'>      createViews();
-</span><span class='line'>
-</span><span class='line'>      //注册插件服务
-</span><span class='line'>      if(jsBridgeService == null){
-</span><span class='line'>          jsBridgeService = new LDJSService(_webview, this, "PluginConfig.json");
-</span><span class='line'>      }
-</span><span class='line'>
-</span><span class='line'>      //加载请求
-</span><span class='line'>      if(this.url != null && !this.url.equalsIgnoreCase("")){
-</span><span class='line'>          _webview.loadUrl(this.url);
-</span><span class='line'>      }
-</span><span class='line'>    }
-</span><span class='line'>    
-</span><span class='line'>    
-</span><span class='line'>    
-</span><span class='line'> /**
-</span><span class='line'>     * 初始化webview，如果需要调用JSAPI，必须为Webview注册WebViewClient和WebChromeClient
-</span><span class='line'>     */
-</span><span class='line'>    @SuppressLint("SetJavaScriptEnabled")
-</span><span class='line'>    public void createGapView(){
-</span><span class='line'>      if(_webview == null){
-</span><span class='line'>          _webview = new WebView(LDPBaseWebViewActivity.this, null);
-</span><span class='line'>          //设置允许webview和javascript交互
-</span><span class='line'>            _webview.getSettings().setJavaScriptEnabled(true);
-</span><span class='line'>            _webview.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
-</span><span class='line'>
-</span><span class='line'>          //绑定webviewclient
-</span><span class='line'>          _webviewClient = new WebViewClient(){
-</span><span class='line'>              public void onPageStarted(WebView view, String url, Bitmap favicon){
-</span><span class='line'>                  super.onPageStarted(view, url, favicon);
-</span><span class='line'>                  isWebviewStarted = true;
-</span><span class='line'>              }
-</span><span class='line'>
-</span><span class='line'>              public void onPageFinished(WebView view, String url) {
-</span><span class='line'>                  super.onPageFinished(view, url);
-</span><span class='line'>                      //发送事件通知前端
-</span><span class='line'>                  if(isWebviewStarted){
-</span><span class='line'>                      //在page加载之后，加载核心JS，前端页面可以在document.ready函数中直接调用了；
-</span><span class='line'>                      jsBridgeService.onWebPageFinished();
-</span><span class='line'>                          jsBridgeService.readyWithEventName("LDJSBridgeServiceReady");
-</span><span class='line'>                  }
-</span><span class='line'>                  isWebviewStarted = false;
-</span><span class='line'>              }
-</span><span class='line'>
-</span><span class='line'>                @Override
-</span><span class='line'>                public boolean shouldOverrideUrlLoading(WebView view, String url) {
-</span><span class='line'>                      if(url.startsWith("about:")){
-</span><span class='line'>                          return true;
-</span><span class='line'>                      }
-</span><span class='line'>                      if(url.startsWith(LDJSService.LDJSBridgeScheme)){
-</span><span class='line'>                          //处理JSBridge特定的Scheme
-</span><span class='line'>                          jsBridgeService.handleURLFromWebview(url);
-</span><span class='line'>                          return true;
-</span><span class='line'>                      }
-</span><span class='line'>
-</span><span class='line'>                      return false;
-</span><span class='line'>                }
-</span><span class='line'>          };
-</span><span class='line'>
-</span><span class='line'>          _webview.setWebViewClient(_webviewClient);
-</span><span class='line'>          //绑定chromeClient
-</span><span class='line'>          _webviewChromeClient = new WebChromeClient(){
-</span><span class='line'>              @Override
-</span><span class='line'>              public boolean onJsAlert(WebView view, String url, String message,
-</span><span class='line'>                      JsResult result) {
-</span><span class='line'>                  return super.onJsAlert(view, url, message, result);
-</span><span class='line'>              }
-</span><span class='line'>          };
-</span><span class='line'>          _webview.setWebChromeClient(_webviewChromeClient);
-</span><span class='line'>      }
-</span><span class='line'>    }
-</span><span class='line'>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h3>结束</h3>
-
-<p>第一次写博客，写得糙和不好的地方望见谅，本人将会不断改善和提高自身能力；目前源码部分还没有得到许可上传到Github部分（待得到许可，应该问题不大，一定第一时间上传），所以本博客主要提供大概的解决方案，望能够和有需要的人士交流沟通具体实现方式的差异。</p>
-</div>
-  
-  
-
-
-    </article>
-  
   <div class="pagination">
     
       <a class="prev" href="/page3">&larr; Older</a>
@@ -1425,6 +1346,10 @@ NSNotificationCenter、NSObject、NSOrderedSet、NSSet、NSString、NSURLConnect
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2015/11/25/appxing-neng-jian-kong-newrelicsdkshi-yong-ji-lan-jie-shang-bao-fang-an/">App性能监控-newRelicSDK使用及拦截上报方案</a>
+      </li>
     
       <li class="post">
         <a href="/blog/2015/11/20/ali-waxshi-yong-he-yuan-ma-jie-xi-xi-lie-waxde-ji-cheng-he-diao-shi-huan-jing-da-jian/">Ali-Wax使用和源码解析系列-Wax的集成和调试环境搭建</a>

@@ -9,7 +9,7 @@
   <meta name="author" content="philon">
 
   
-  <meta name="description" content="来某易公司差不多三个季度了，比起刚入职时候的期待、兴奋、专注，现在是期待和兴奋已被磨灭殆尽，在技术方面也越来越不专注了。越是闲下来，越不想时光在这样的停摆期悄悄溜走，特别想让自己仍然在IOS和前端领域深耕细作。 折腾了两天，终于把自己的独立博客在github搭建起来了， &hellip;">
+  <meta name="description" content="前言 对于商务类的app，随着app注册使用人数递增，app的运营者们就会逐渐考虑在应用中开展一些推广活动。大多数活动具备时效性强、运营时间短的特征，一般产品们和运营者们都是通过wap页面快速投放到产品的活动模块。Wap页面可以声文并茂地介绍活动，但活动的最终目标是通过获取特权、 &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -72,6 +72,818 @@
       
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2015/05/29/jsbridge/">通用JSBridge的设计和实现</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2015-05-29T21:30:27+08:00" pubdate data-updated="true"></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><h3>前言</h3>
+
+<p>对于商务类的app，随着app注册使用人数递增，app的运营者们就会逐渐考虑在应用中开展一些推广活动。大多数活动具备时效性强、运营时间短的特征，一般产品们和运营者们都是通过wap页面快速投放到产品的活动模块。Wap页面可以声文并茂地介绍活动，但活动的最终目标是通过获取特权、跳转进入本地功能模块，最后达成交易。如何建立wap页面和本地Native页面的深度交互，这就需要用到本文介绍的JSBridge。</p>
+
+<p>此外一些平台类的产品，如大家每天都在使用的微信、支付宝、手机qq等，无一例外都在使用集成JSBridge的webContainer完成众多业务组件功能，大大减少了客户端Native开发的工作量，不仅节约了大量人力开发成本，还能避开产品上线更新的版本审核周期限制（特别是IOS平台）。当然这些超级APP有强大的技术力量支撑，通过JSBridge有计划的进行API规范接口，不断向前端Wap开发人员开放，并在版本上向下兼容。但对于我们刚起步运营的中小级app来说暂时还没有必要如此大张旗鼓，相反前面提到的wap活动推广则是我们的主要需求。</p>
+
+<p>为了满足这个需求，本文通过提炼JSBridge的核心部分改造成JSService方式供各个不同的产品零修改方式使用。各个不同的产品只需要按照插件的方式提供Native扩展接口，并在各自封装的webContainer中调用JSService对Wap调用进行拦截处理。</p>
+
+<h3>具体产品应用</h3>
+
+<p>目前该框架同时覆盖了Android和IOS平台，在我司的几个电商类产品中都得到了很好的使用，并趋于稳定。
+本文的Demo工程运行效果如下：</p>
+
+<p><img src="/images/jsapidemo_ios.png">
+<img src="/images/jsapidemo_android.jpg"></p>
+
+<h3>关于JSAPI的接口封装</h3>
+
+<p>JSAPI的封装包括核心JS和对外开放接口JS两个部分。 核心JS部分通过拦截某Q的wap请求页面获取，获取的JS进行编码混淆处理，已经通过调试进行了注释，其主要过程就是对参数和回调进行封装，并构建一个url链接通过创建一个隐藏的iframe进行发送。<a href="">核心JS代码阅读</a></p>
+
+<p>对参数和回调进行封装部分的代码如下：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>//invoke
+</span><span class='line'>  //mapp.invoke("device", "getDeviceInfo", e);
+</span><span class='line'>  //@param e 类 必须
+</span><span class='line'>  //@param n 类方法 必须
+</span><span class='line'>  //@param i 同步回调的js方法
+</span><span class='line'>  //@param s 
+</span><span class='line'>    function k(e, n, i, s) {
+</span><span class='line'>        if (!e || !n) return null;
+</span><span class='line'>        var o, u;
+</span><span class='line'>        i = r.call(arguments, 2), //相当于调用Array.prototype.slice(arguments) == arguments.slice(2),获取argument数组2以后的元素
+</span><span class='line'>        
+</span><span class='line'>      //令s等于回调函数
+</span><span class='line'>      s = i.length && i[i.length - 1],
+</span><span class='line'>        s && typeof s == "function" ? i.pop() : typeof s == "undefined" ? i.pop() : s = null,
+</span><span class='line'>        
+</span><span class='line'>      //u为当前存储回调函数的index；
+</span><span class='line'>      u = b(s);
+</span><span class='line'>        
+</span><span class='line'>      //如果当前版本支持Bridge
+</span><span class='line'>      if (C(e, n)) {
+</span><span class='line'>          //将传进来的所有参数生成一个url字符串；
+</span><span class='line'>            o = "ldjsbridge:" + "/" + "/" + encodeURIComponent(e) + "/" + encodeURIComponent(n),
+</span><span class='line'>            i.forEach(function(e, t) {
+</span><span class='line'>                typeof e == "object" && (e = JSON.stringify(e)),
+</span><span class='line'>                t === 0 ? o += "?p=": o += "&p" + t + "=",
+</span><span class='line'>                o += encodeURIComponent(String(e))
+</span><span class='line'>            }),
+</span><span class='line'>            (o += "#" + u); //带上存储回调的数组index;
+</span><span class='line'>          
+</span><span class='line'>           
+</span><span class='line'>          //执行生成的url, 有些函数是同步执行完毕，直接调用回调函数；而有些函数的调用要通过异步调用执行，需要通过
+</span><span class='line'>          //全局调用去完成；
+</span><span class='line'>              var f = N(o);
+</span><span class='line'>            if (t.iOS) {
+</span><span class='line'>                f = f ? f.result: null;
+</span><span class='line'>                if (!s) return f; //如果无回调函数，直接返回结果；
+</span><span class='line'>            }
+</span><span class='line'>        }else {
+</span><span class='line'>          console.log("mappapi: the version don't support mapp." + e + "." + n);
+</span><span class='line'>      }
+</span><span class='line'>    }
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>创建iframe发送JSBridge调用请求：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>//创建一个iframe，执行src，供拦截
+</span><span class='line'>function N(n, r) {
+</span><span class='line'>  console.log("logOpenURL:&gt;&gt;" + n);
+</span><span class='line'>    var i = document.createElement("iframe");
+</span><span class='line'>    i.style.cssText = "display:none;width:0px;height:0px;";
+</span><span class='line'>    var s = function() {
+</span><span class='line'>      //通过全局执行函数执行回调函数；监听iframe是否加载完毕
+</span><span class='line'>        E(r, {
+</span><span class='line'>            r: -201,
+</span><span class='line'>            result: "error"
+</span><span class='line'>        })
+</span><span class='line'>    };
+</span><span class='line'>    
+</span><span class='line'>  //ios平台，令iframe的src为url，onload函数为全局回调函数
+</span><span class='line'>  //并将iframe插入到body或者html的子节点中；
+</span><span class='line'>  t.iOS && (i.onload = s, i.src = n);
+</span><span class='line'>    var o = document.body || document.documentElement; 
+</span><span class='line'>    o.appendChild(i),
+</span><span class='line'>    t.android && (i.onload = s, i.src = n);
+</span><span class='line'>  
+</span><span class='line'>  //
+</span><span class='line'>    var u = t.__RETURN_VALUE;
+</span><span class='line'>  //当iframe执行完成之后，最后执行settimeout 0语句
+</span><span class='line'>    return t.__RETURN_VALUE = e,
+</span><span class='line'>    setTimeout(function() {
+</span><span class='line'>        i.parentNode.removeChild(i)
+</span><span class='line'>    },
+</span><span class='line'>    0),
+</span><span class='line'>    u
+</span><span class='line'>}</span></code></pre></td></tr></table></div></figure>
+
+
+<p>对外开放接口的封装：（使用者只需要对该部分进行接口扩展即可）</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mapp.build("mapp.device.getDeviceInfo", {
+</span><span class='line'>    iOS: function(e) {
+</span><span class='line'>      return mapp.invoke("device", "getDeviceInfo", e);
+</span><span class='line'>    },
+</span><span class='line'>    android: function(e) {
+</span><span class='line'>      var t = e;
+</span><span class='line'>      e = function(e) {
+</span><span class='line'>          try {
+</span><span class='line'>              e = JSON.parse(e)
+</span><span class='line'>          } catch(n) {}
+</span><span class='line'>          t && t(e)
+</span><span class='line'>      },
+</span><span class='line'>      mapp.invoke("device", "getDeviceInfo", e)
+</span><span class='line'>    },
+</span><span class='line'>    support: {
+</span><span class='line'>        iOS: "1.0",
+</span><span class='line'>        android: "1.0"
+</span><span class='line'>    }
+</span><span class='line'>}),
+</span><span class='line'>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>核心JS代码调用说明</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>
+</span><span class='line'>mapp.version: mappAPI自身版本号
+</span><span class='line'>
+</span><span class='line'>mapp.iOS: 如果在ios app中，值为true
+</span><span class='line'>
+</span><span class='line'>mapp.android: 如果在android app中，值为true
+</span><span class='line'>
+</span><span class='line'>mapp.support: 检查当前app环境是否支持该接口，支持返回true
+</span><span class='line'>
+</span><span class='line'>  mapp.support("mqq.device.getClientInfo")
+</span><span class='line'>
+</span><span class='line'>mapp.callback: 用于生成回调名字，跟着invoke参数传给客户端，供客户端回调
+</span><span class='line'>
+</span><span class='line'>  var callbackName = mapp.callback(function(type, index){     console.log("type: " + type + ", index: " + index);    });
+</span><span class='line'>
+</span><span class='line'>mapp.invoke 方法:
+</span><span class='line'>
+</span><span class='line'>mapp核心方法，用于调用客户端接口。
+</span><span class='line'>
+</span><span class='line'>      @param {String} namespace 命名空间
+</span><span class='line'>      @param {String} method 接口名字
+</span><span class='line'>      @param {Object/String} params 可选，API调用的参数
+</span><span class='line'>      @param {Function} callback 可选，API调用的回调
+</span><span class='line'>
+</span><span class='line'>* 调用普通的无参数接口：
+</span><span class='line'>
+</span><span class='line'>      mapp.invoke("ns", "method");
+</span><span class='line'>      
+</span><span class='line'>* 调用有异步回调函数的接口：
+</span><span class='line'>
+</span><span class='line'>      mapp.invoke("ns", "method", function(data){
+</span><span class='line'>          console.log(data);
+</span><span class='line'>      });
+</span><span class='line'>      
+</span><span class='line'>      或
+</span><span class='line'>      
+</span><span class='line'>      mapp.invoke("ns", "method", {
+</span><span class='line'>          "params" : params   //参数通过json封装
+</span><span class='line'>          "callback" : mapp.callback(handler), //生成回调名字
+</span><span class='line'>      });
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>* 如果有多个参数调用：
+</span><span class='line'>
+</span><span class='line'>      mapp.invoke("ns", "method", param1, param2 /*,...*/,callback);
+</span><span class='line'>      
+</span><span class='line'>      </span></code></pre></td></tr></table></div></figure>
+
+
+<h3>JSService的具体实现－插件运行机制</h3>
+
+<p>JSService部分是基于Phonegap的Cordova引擎的基础上简化而来，其基本原理参照Cordova的引擎原理如图所示：</p>
+
+<p><img src="/images/JSBridgeIOS_1.png"></p>
+
+<p>一般app中都有自己定制的Webcontainer，为了更好的跟已有项目相融合，在Cordova的基础上我们进行了简化，通过JSAPIService服务的方式进行插件扩展开发如图所示：</p>
+
+<p><img src="/images/JSBridgeIOS_2.png"></p>
+
+<p>本JSBridge是基于Phonegap的Cordova引擎的基础上简化而来, Android平台Webview和JS的交互方式共有三种:</p>
+
+<ol>
+<li>ExposedJsApi：js直接调用java对象的方法；（同步）</li>
+<li>重载chromeClient的prompt 截获方案；(异步)</li>
+<li>url截获+webview.loadUrl回调的方案；（异步）</li>
+</ol>
+
+
+<p>为了和IOS保持一致的JSAPI，只能选用第三套方案；</p>
+
+<p><a href="">具体实现参考源码</a></p>
+
+<h3>基于JSService的插件开发、配置和使用</h3>
+
+<h4>IOS平台</h4>
+
+<p>在Native部分，定义一个模块插件对应于创建一个插件类, 模块中的每个插件接口对应插件类中某个方法。
+集成LDJSBridge_IOS框架之后，只需要继承框架中的插件基类LDJSPlugin，如下所示：</p>
+
+<ul>
+<li>插件接口定义</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#import "LDJSPlugin.h"
+</span><span class='line'>@interface LDPDevice : LDJSPlugin
+</span><span class='line'>{}
+</span><span class='line'>
+</span><span class='line'>//@func 获取设备信息
+</span><span class='line'>- (void)getDeviceInfo:(LDJSInvokedUrlCommand*)command;
+</span><span class='line'>
+</span><span class='line'>@end
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p></p>
+
+<ul>
+<li>自定义插件接口实现</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>@implementation LDPDevice
+</span><span class='line'>
+</span><span class='line'>/**
+</span><span class='line'> *@func 获取设备信息
+</span><span class='line'> */
+</span><span class='line'>- (void)getDeviceInfo:(LDJSInvokedUrlCommand*)command{
+</span><span class='line'>    //读取设备信息
+</span><span class='line'>    NSMutableDictionary* deviceProperties = [NSMutableDictionary dictionaryWithCapacity:4];
+</span><span class='line'>    
+</span><span class='line'>    UIDevice* device = [UIDevice currentDevice];
+</span><span class='line'>    [deviceProperties setObject:[device systemName] forKey:@"systemName"];
+</span><span class='line'>    [deviceProperties setObject:[device systemVersion] forKey:@"systemVersion"];
+</span><span class='line'>    [deviceProperties setObject:[device model] forKey:@"model"];
+</span><span class='line'>    [deviceProperties setObject:[device modelVersion] forKey:@"modelVersion"];
+</span><span class='line'>    [deviceProperties setObject:[self uniqueAppInstanceIdentifier] forKey:@"identifier"];
+</span><span class='line'>    
+</span><span class='line'>    LDJSPluginResult* pluginResult = [LDJSPluginResult resultWithStatus:LDJSCommandStatus_OK messageAsDictionary:[NSDictionary dictionaryWithDictionary:deviceProperties]];
+</span><span class='line'>    
+</span><span class='line'>    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+</span><span class='line'>}
+</span><span class='line'>
+</span><span class='line'>@end</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>在plugin.json文件中对plugin插件的统一配置</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>{
+</span><span class='line'>    "update": "",
+</span><span class='line'>    "module": "mapp",
+</span><span class='line'>    "plugins": [
+</span><span class='line'>        {
+</span><span class='line'>            "pluginname": "device",
+</span><span class='line'>            "pluginclass": "LDPDevice",
+</span><span class='line'>            "exports": [
+</span><span class='line'>                {
+</span><span class='line'>                    "showmethod": "getDeviceInfo",
+</span><span class='line'>                    "realmethod": "getDeviceInfo"
+</span><span class='line'>                }
+</span><span class='line'>            ]
+</span><span class='line'>        }
+</span><span class='line'>  ]
+</span><span class='line'>}</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>在webContainer中对JSService初始化, 当初始化完成之后，向前端页面发送一个ReadyEvent，前端即可开始调用JSAPI接口；</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>//注册插件Service
+</span><span class='line'>    if(_bridgeService == nil){
+</span><span class='line'>        _bridgeService = [[LDJSService alloc] initBridgeServiceWithConfig:@"PluginConfig.json"];
+</span><span class='line'>    }
+</span><span class='line'>    [_bridgeService connect:_webview Controller:self];
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>/**
+</span><span class='line'> Called when the webview finishes loading.  This stops the activity view.
+</span><span class='line'> */
+</span><span class='line'>- (void)webViewDidFinishLoad:(UIWebView*)theWebView{
+</span><span class='line'>    NSLog(@"Finished load of: %@", theWebView.request.URL);
+</span><span class='line'>    //当webview finish load之后，发event事件通知前端JSBridgeService已经就绪
+</span><span class='line'>    //监听事件由各个产品自行决定
+</span><span class='line'>    [_bridgeService readyWithEvent:@"LDJSBridgeServiceReady"];
+</span><span class='line'>}
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>Android平台</h4>
+
+<ul>
+<li>插件接口定义</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>public class LDPDevice extends LDJSPlugin {
+</span><span class='line'>          public static final String TAG = "Device";
+</span><span class='line'>
+</span><span class='line'>  /**
+</span><span class='line'>           * Constructor.
+</span><span class='line'>           */
+</span><span class='line'>          public LDPDevice() {
+</span><span class='line'>          }
+</span><span class='line'>      }
+</span><span class='line'>      </span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>LDJSPlugin 属性方法说明</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>/**
+</span><span class='line'>* Plugins must extend this class and override one of the execute methods.
+</span><span class='line'>*/
+</span><span class='line'>public class LDJSPlugin {
+</span><span class='line'>          public String id;
+</span><span class='line'>          
+</span><span class='line'>          //在插件初始化的时候，会初始化当前插件所属的webview和controller
+</span><span class='line'>  //供插件方法接口 返回处理结果
+</span><span class='line'>    public WebView webView; 
+</span><span class='line'>  public LDJSActivityInterface activityInterface;
+</span><span class='line'>  
+</span><span class='line'>  //所有自定义插件需要重载此方法
+</span><span class='line'>  public boolean execute(String action, LDJSParams args, LDJSCallbackContext callbackContext) throws JSONException {
+</span><span class='line'>          return false;
+</span><span class='line'>          }
+</span><span class='line'>          
+</span><span class='line'>      }   
+</span><span class='line'>      </span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>自定义插件接口实现</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>@Override
+</span><span class='line'>  public boolean execute(String action, LDJSParams args, LDJSCallbackContext callbackContext) throws JSONException {
+</span><span class='line'>      if (action.equals("getDeviceInfo")) {
+</span><span class='line'>          JSONObject r = new JSONObject();
+</span><span class='line'>          r.put("uuid", LDPDevice.uuid);
+</span><span class='line'>          r.put("version", this.getOSVersion());
+</span><span class='line'>          r.put("platform", this.getPlatform());
+</span><span class='line'>          r.put("model", this.getModel());
+</span><span class='line'>          callbackContext.success(r);
+</span><span class='line'>      }
+</span><span class='line'>      else {
+</span><span class='line'>          return false;
+</span><span class='line'>      }
+</span><span class='line'>      return true;
+</span><span class='line'>  }
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>在封装的webContainer中注册服务并调用：</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+<span class='line-number'>72</span>
+<span class='line-number'>73</span>
+<span class='line-number'>74</span>
+<span class='line-number'>75</span>
+<span class='line-number'>76</span>
+<span class='line-number'>77</span>
+<span class='line-number'>78</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>  /**
+</span><span class='line'>     * 初始化Activity,打开网页，注册插件服务
+</span><span class='line'>     */
+</span><span class='line'>    public void initActivity() {
+</span><span class='line'>        //创建webview和显示view
+</span><span class='line'>      createGapView();
+</span><span class='line'>      createViews();
+</span><span class='line'>
+</span><span class='line'>      //注册插件服务
+</span><span class='line'>      if(jsBridgeService == null){
+</span><span class='line'>          jsBridgeService = new LDJSService(_webview, this, "PluginConfig.json");
+</span><span class='line'>      }
+</span><span class='line'>
+</span><span class='line'>      //加载请求
+</span><span class='line'>      if(this.url != null && !this.url.equalsIgnoreCase("")){
+</span><span class='line'>          _webview.loadUrl(this.url);
+</span><span class='line'>      }
+</span><span class='line'>    }
+</span><span class='line'>    
+</span><span class='line'>    
+</span><span class='line'>    
+</span><span class='line'> /**
+</span><span class='line'>     * 初始化webview，如果需要调用JSAPI，必须为Webview注册WebViewClient和WebChromeClient
+</span><span class='line'>     */
+</span><span class='line'>    @SuppressLint("SetJavaScriptEnabled")
+</span><span class='line'>    public void createGapView(){
+</span><span class='line'>      if(_webview == null){
+</span><span class='line'>          _webview = new WebView(LDPBaseWebViewActivity.this, null);
+</span><span class='line'>          //设置允许webview和javascript交互
+</span><span class='line'>            _webview.getSettings().setJavaScriptEnabled(true);
+</span><span class='line'>            _webview.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+</span><span class='line'>
+</span><span class='line'>          //绑定webviewclient
+</span><span class='line'>          _webviewClient = new WebViewClient(){
+</span><span class='line'>              public void onPageStarted(WebView view, String url, Bitmap favicon){
+</span><span class='line'>                  super.onPageStarted(view, url, favicon);
+</span><span class='line'>                  isWebviewStarted = true;
+</span><span class='line'>              }
+</span><span class='line'>
+</span><span class='line'>              public void onPageFinished(WebView view, String url) {
+</span><span class='line'>                  super.onPageFinished(view, url);
+</span><span class='line'>                      //发送事件通知前端
+</span><span class='line'>                  if(isWebviewStarted){
+</span><span class='line'>                      //在page加载之后，加载核心JS，前端页面可以在document.ready函数中直接调用了；
+</span><span class='line'>                      jsBridgeService.onWebPageFinished();
+</span><span class='line'>                          jsBridgeService.readyWithEventName("LDJSBridgeServiceReady");
+</span><span class='line'>                  }
+</span><span class='line'>                  isWebviewStarted = false;
+</span><span class='line'>              }
+</span><span class='line'>
+</span><span class='line'>                @Override
+</span><span class='line'>                public boolean shouldOverrideUrlLoading(WebView view, String url) {
+</span><span class='line'>                      if(url.startsWith("about:")){
+</span><span class='line'>                          return true;
+</span><span class='line'>                      }
+</span><span class='line'>                      if(url.startsWith(LDJSService.LDJSBridgeScheme)){
+</span><span class='line'>                          //处理JSBridge特定的Scheme
+</span><span class='line'>                          jsBridgeService.handleURLFromWebview(url);
+</span><span class='line'>                          return true;
+</span><span class='line'>                      }
+</span><span class='line'>
+</span><span class='line'>                      return false;
+</span><span class='line'>                }
+</span><span class='line'>          };
+</span><span class='line'>
+</span><span class='line'>          _webview.setWebViewClient(_webviewClient);
+</span><span class='line'>          //绑定chromeClient
+</span><span class='line'>          _webviewChromeClient = new WebChromeClient(){
+</span><span class='line'>              @Override
+</span><span class='line'>              public boolean onJsAlert(WebView view, String url, String message,
+</span><span class='line'>                      JsResult result) {
+</span><span class='line'>                  return super.onJsAlert(view, url, message, result);
+</span><span class='line'>              }
+</span><span class='line'>          };
+</span><span class='line'>          _webview.setWebChromeClient(_webviewChromeClient);
+</span><span class='line'>      }
+</span><span class='line'>    }
+</span><span class='line'>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>结束</h3>
+
+<p>第一次写博客，写得糙和不好的地方望见谅，本人将会不断改善和提高自身能力；目前源码部分还没有得到许可上传到Github部分（待得到许可，应该问题不大，一定第一时间上传），所以本博客主要提供大概的解决方案，望能够和有需要的人士交流沟通具体实现方式的差异。</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2015/05/22/helloworld/">如何搭建自己的github博客，我从这里启航</a></h1>
     
     
@@ -116,6 +928,10 @@
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2015/11/25/appxing-neng-jian-kong-newrelicsdkshi-yong-ji-lan-jie-shang-bao-fang-an/">App性能监控-newRelicSDK使用及拦截上报方案</a>
+      </li>
     
       <li class="post">
         <a href="/blog/2015/11/20/ali-waxshi-yong-he-yuan-ma-jie-xi-xi-lie-waxde-ji-cheng-he-diao-shi-huan-jing-da-jian/">Ali-Wax使用和源码解析系列-Wax的集成和调试环境搭建</a>
